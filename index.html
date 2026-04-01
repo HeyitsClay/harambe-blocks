@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Harambe Blocks</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
+        :root { --bg: #050505; --white: #ffffff; }
+        body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; touch-action: none; user-select: none; }
+        #app { display: flex; flex-direction: column; height: 100vh; max-width: 500px; margin: 0 auto; padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem; }
+        header { height: 15%; display: flex; justify-content: space-between; align-items: center; position: relative; }
+        main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+        footer { height: 25%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 1rem; }
+        .score-val { font-size: 2.8rem; font-weight: 900; line-height: 1; }
+        .label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); }
+        .slot { flex: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
+        .btn-retry { margin-top: 2rem; padding: 1rem 3rem; background: #fff; color: #000; font-weight: 900; border-radius: 2rem; text-transform: uppercase; letter-spacing: 0.1em; transition: transform 0.2s; }
+        .btn-retry:active { transform: scale(0.9); }
+        #dev-auto { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 0.5rem; padding: 0.25rem 0.75rem; font-size: 0.6rem; font-weight: 900; color: #fff; opacity: 0.5; transition: opacity 0.2s; z-index: 50; cursor: pointer; }
+        #dev-auto.active { background: #22c55e; color: #000; opacity: 1; border-color: #22c55e; }
+    </style>
+</head>
+<body>
+    <div id="overlay">
+        <div class="label mb-2 text-white/60">Session Ended</div>
+        <div id="final-score" class="text-7xl font-black mb-4">0</div>
+        <button class="btn-retry" onclick="location.reload()">Respawn</button>
+    </div>
+
+    <div id="app">
+        <header>
+            <div><div class="label">Harambe Score</div><div id="ui-score" class="score-val">0</div></div>
+            <button id="dev-auto">AUTO</button>
+            <div class="text-right"><div class="label">Best Legacy</div><div id="ui-best" class="text-xl font-bold opacity-40">0</div></div>
+        </header>
+        <main id="stage"><canvas id="game"></canvas></main>
+        <footer>
+            <div id="s0" class="slot" data-id="0"></div>
+            <div id="s1" class="slot" data-id="1"></div>
+            <div id="s2" class="slot" data-id="2"></div>
+        </footer>
+    </div>
+
+    <script>
+        const TICK_RATE = 60;
+        const DT = 1 / TICK_RATE;
+        const EASE_CUBIC_OUT = t => 1 - Math.pow(1 - t, 3);
+        const LERP = (a, b, t) => a + (b - a) * t;
+
+        const COLORS = { BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700' };
+
+        const CONFIG = {
+            GRID: 10, GAP: 6, TOUCH_OFFSET: 130, GRAVITY: 1200, AUTO_DELAY: 750,
+            SHAPES: {
+                UTILITY: { I2h: [[0,0],[1,0]], I2v: [[0,0],[0,1]], L2_1: [[0,0],[0,1],[1,1]], L2_2: [[1,0],[0,1],[1,1]], L2_3: [[0,0],[1,0],[1,1]], L2_4: [[0,0],[1,0],[0,1]] },
+                STANDARD: { I3h: [[0,0],[1,0],[2,0]], I3v: [[0,0],[0,1],[0,2]], O: [[0,0],[1,0],[0,1],[1,1]], T1: [[1,0],[0,1],[1,1],[2,1]], T3: [[0,0],[1,0],[2,0],[1,1]], L1: [[0,0],[0,1],[0,2],[1,2]], J1: [[1,0],[1,1],[1,2],[0,2]], S1: [[1,0],[2,0],[0,1],[1,1]], Z1: [[0,0],[1,0],[1,1],[2,1]] },
+                ELITE: { I4h: [[0,0],[1,0],[2,0],[3,0]], I4v: [[0,0],[0,1],[0,2],[0,3]], Sq3: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]], L3_1: [[0,0],[0,1],[0,2],[1,2],[2,2]], L3_3: [[0,0],[1,0],[2,0],[2,1],[2,2]], D3_1: [[0,0],[1,1],[2,2]], D3_2: [[2,0],[1,1],[0,2]] }
+            }
+        };
+
+        class Shard {
+            constructor(x, y, size, bounds) {
+                this.x = x; this.y = y; this.size = size; this.bounds = bounds;
+                this.vx = (Math.random() - 0.5) * 500;
+                this.vy = -300 - Math.random() * 500;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotV = (Math.random() - 0.5) * 20;
+                this.life = 1.0;
+                this.isDead = false;
+            }
+            update(dt) {
+                this.vy += CONFIG.GRAVITY * dt;
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.rotation += this.rotV * dt;
+                this.life -= dt * 0.5;
+                if (this.y >= this.bounds.h - this.size) {
+                    this.y = this.bounds.h - this.size;
+                    this.vy *= -0.3;
+                    this.vx *= 0.8;
+                }
+                if (this.life <= 0) this.isDead = true;
+            }
+            draw(ctx) {
+                ctx.save(); ctx.globalAlpha = Math.max(0, this.life);
+                ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        class VisualFlare {
+            constructor(x, y, power = 1, color = '#fff') { this.x = x; this.y = y; this.radius = 0; this.maxRadius = 60 * power; this.life = 1.0; this.color = color; }
+            update(dt) { this.radius += dt * 600; this.life -= dt * 5; }
+            draw(ctx) { ctx.save(); ctx.globalAlpha = Math.max(0, this.life); const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius); g.addColorStop(0, this.color); g.addColorStop(1, 'transparent'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+        }
+
+        class Shockwave {
+            constructor(x, y, power = 1, color = '#fff') { this.x = x; this.y = y; this.radius = 0; this.maxRadius = 150 * power; this.life = 1.0; this.power = power; this.color = color; }
+            update(dt) { this.radius += dt * 600; this.life -= dt * 2.5; }
+            draw(ctx) { ctx.save(); ctx.globalAlpha = Math.max(0, this.life * 0.6); ctx.strokeStyle = this.color; ctx.lineWidth = 6 * this.power; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+        }
+
+        class Confetti {
+            constructor(x, y, power = 1, color = null) {
+                const rain = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'];
+                this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * (500 * power); this.vy = (Math.random() - 0.8) * (700 * power);
+                this.color = color || rain[Math.floor(Math.random() * rain.length)]; this.life = 1.0; this.size = 3 + Math.random() * 5;
+                this.rotation = Math.random() * Math.PI * 2; this.rotV = (Math.random() - 0.5) * 30;
+            }
+            update(dt) { this.vy += CONFIG.GRAVITY * 0.5 * dt; this.x += this.vx * dt; this.y += this.vy * dt; this.rotation += this.rotV * dt; this.life -= dt * 0.7; }
+            draw(ctx) { ctx.save(); ctx.globalAlpha = Math.max(0, this.life); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.fillStyle = this.color; ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size); ctx.restore(); }
+        }
+
+        class ScorePopup {
+            constructor(x, y, val, bounds, vx = null, vy = null) {
+                this.x = x; this.y = y; this.val = Math.floor(val); this.bounds = bounds; this.isDead = false;
+                this.vx = vx !== null ? vx : (Math.random() - 0.5) * 200; this.vy = vy !== null ? vy : -450 - Math.random() * 200; 
+                this.rotation = 0; this.rotV = (Math.random() - 0.5) * 8; this.radius = Math.max(18, Math.min(55, 14 + (this.val / 18)));
+                this.pulse = 0; this.bounciness = 0.7; this.spawnScale = 0; this.targetScale = 1.0;
+                this.isRainbow = this.val >= 400;
+                if (!this.isRainbow) { if (this.val < 100) this.color = COLORS.BRONZE; else if (this.val === 100) this.color = COLORS.SILVER; else this.color = COLORS.GOLD; }
+            }
+            update(dt, onHit) {
+                this.vy += CONFIG.GRAVITY * dt; this.x += this.vx * dt; this.y += this.vy * dt; this.rotation += this.rotV * dt; this.pulse += dt * 10; this.vx *= 0.99; this.vy *= 0.99;
+                if (this.spawnScale < this.targetScale) this.spawnScale = Math.min(this.targetScale, this.spawnScale + dt * 6);
+                if (this.x <= this.radius) { this.x = this.radius; this.vx *= -this.bounciness; } else if (this.x >= this.bounds.w - this.radius) { this.x = this.bounds.w - this.radius; this.vx *= -this.bounciness; }
+                if (this.y <= this.radius) { this.y = this.radius; this.vy *= -this.bounciness; }
+                if (this.y >= this.bounds.h - this.radius) { this.y = this.bounds.h - this.radius; this.isDead = true; onHit(this); }
+            }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
+                const s = this.spawnScale * (this.val >= 100 ? (1 + Math.sin(this.pulse) * 0.1) : 1); ctx.scale(s, s);
+                let fill = this.color;
+                if (this.isRainbow) { fill = `hsl(${(this.pulse * 100) % 360}, 100%, 60%)`; ctx.shadowColor = fill; ctx.shadowBlur = 25; } else if (this.val >= 100) { ctx.shadowColor = this.color; ctx.shadowBlur = 15; }
+                ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#000'; ctx.lineWidth = this.val >= 100 ? 7 : 4; ctx.stroke();
+                ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * 0.85)}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.val, 0, 0); ctx.restore();
+            }
+        }
+
+        class VisualTile {
+            constructor(startX, startY, tx, ty, size, bounds) {
+                this.x = startX; this.y = startY; this.startX = startX; this.startY = startY;
+                this.tx = tx; this.ty = ty; this.size = size; this.bounds = bounds;
+                this.alpha = 0; this.scaleX = 1; this.scaleY = 1; this.velScaleX = 0; this.velScaleY = 0;
+                this.tension = 500; this.friction = 20; this.isDead = false; this.moveTime = 0; this.isMoving = true;
+                this.isExploded = false; this.vx = 0; this.vy = 0; this.rotation = 0; this.rotV = 0;
+            }
+            impact() { this.scaleX = 1.4; this.scaleY = 0.6; }
+            explode() { this.isExploded = true; this.isMoving = false; this.vx = (Math.random() - 0.5) * 400; this.vy = -400 - Math.random() * 400; this.rotV = (Math.random() - 0.5) * 15; }
+            update(dt) {
+                if (this.isMoving) {
+                    this.moveTime = Math.min(1, this.moveTime + dt * 6); const t = EASE_CUBIC_OUT(this.moveTime); this.x = LERP(this.startX, this.tx, t); this.y = LERP(this.startY, this.ty, t); if (this.moveTime >= 1) { this.isMoving = false; this.impact(); }
+                }
+                const ax = -this.tension * (this.scaleX - 1) - this.friction * this.velScaleX; const ay = -this.tension * (this.scaleY - 1) - this.friction * this.velScaleY;
+                this.velScaleX += ax * dt; this.velScaleY += ay * dt; this.scaleX += this.velScaleX * dt; this.scaleY += this.velScaleY * dt;
+                this.alpha = LERP(this.alpha, 1, 0.2);
+            }
+            draw(ctx) { ctx.save(); ctx.globalAlpha = Math.max(0, this.alpha); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.scale(this.scaleX, this.scaleY); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(-this.size/2 + 1, -this.size/2 + 1, this.size - 2, this.size - 2, 10); ctx.fill(); ctx.restore(); }
+        }
+
+        class Engine {
+            constructor() {
+                this.canvas = document.getElementById('game'); this.ctx = this.canvas.getContext('2d');
+                this.logicalGrid = Array(CONFIG.GRID).fill().map(() => Array(CONFIG.GRID).fill(null));
+                this.visualEntities = []; this.popups = []; this.confetti = []; this.shockwaves = []; this.flares = []; this.shards = [];
+                this.commandQueue = []; this.queue = [null, null, null];
+                this.score = 0; this.best = localStorage.getItem('harambe_blocks_best') || 0;
+                this.drag = null; this.mouse = { x: 0, y: 0 }; this.accumulator = 0; this.lastTime = 0; this.shake = 0; this.isAuto = false; this.lastAutoTime = 0;
+                this.init();
+            }
+
+            init() {
+                this.resize(); window.onresize = () => this.resize(); this.refill();
+                const start = (e) => this.onStart(e.touches ? e.touches[0] : e);
+                const move = (e) => this.onMove(e.touches ? e.touches[0] : e);
+                const end = () => this.onEnd();
+                window.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+                window.addEventListener('touchstart', start, {passive:false}); window.addEventListener('touchmove', move, {passive:false}); window.addEventListener('touchend', end);
+                document.getElementById('dev-auto').onclick = (e) => { this.isAuto = !this.isAuto; e.target.classList.toggle('active', this.isAuto); this.lastAutoTime = performance.now(); };
+                requestAnimationFrame(this.gameLoop.bind(this));
+            }
+
+            resize() {
+                const p = this.canvas.parentElement; const size = Math.min(p.clientWidth, p.clientHeight) - 20;
+                const dpr = window.devicePixelRatio || 2;
+                this.canvas.width = size * dpr; this.canvas.height = size * dpr;
+                this.canvas.style.width = size + 'px'; this.canvas.style.height = size + 'px';
+                this.ctx.scale(dpr, dpr); this.renderSize = size;
+                this.cSize = (size - (CONFIG.GAP * (CONFIG.GRID + 1))) / CONFIG.GRID;
+            }
+
+            refill() {
+                const density = this.logicalGrid.flat().filter(x => x).length / 100;
+                const utl = Object.keys(CONFIG.SHAPES.UTILITY), std = Object.keys(CONFIG.SHAPES.STANDARD), elt = Object.keys(CONFIG.SHAPES.ELITE);
+                const getRand = (arr) => arr[Math.floor(Math.random() * arr.length)];
+                this.queue[0] = getRand(utl); this.queue[1] = getRand(std);
+                if (density > 0.6) this.queue[2] = getRand(utl);
+                else if (density < 0.25) this.queue[2] = getRand(elt);
+                else this.queue[2] = Math.random() > 0.5 ? getRand(std) : getRand(utl);
+                for(let i=0; i<3; i++) this.updateTrayUI(i);
+                this.checkLoss();
+            }
+
+            updateTrayUI(i) {
+                const el = document.getElementById('s'+i); el.innerHTML = ''; if(!this.queue[i]) return;
+                const can = document.createElement('canvas'); can.width = 120; can.height = 120;
+                const ctx = can.getContext('2d'); const b = this.getB(this.queue[i]);
+                const scale = Math.max(b.w, b.h) > 3 ? 14 : 18;
+                this.drawPiece(ctx, this.queue[i], 60, 60, scale, 1);
+                el.appendChild(can); el.style.opacity = '1';
+            }
+
+            onStart(e) { if (this.isAuto) return; const el = e.target.closest('.slot'); if(el && this.queue[el.dataset.id]) { this.drag = { type: this.queue[el.dataset.id], id: el.dataset.id, tx: e.clientX, ty: e.clientY }; el.style.opacity = '0'; } }
+            onMove(e) { this.mouse.x = e.clientX; this.mouse.y = e.clientY; }
+            onEnd() { if(!this.drag) return; const r = this.canvas.getBoundingClientRect(); const fit = this.findBestFit(this.drag.type, this.drag.tx - r.left, this.drag.ty - r.top - CONFIG.TOUCH_OFFSET); if(fit) { this.commandQueue.push({ type: 'PLACE', shape: this.drag.type, gx: fit.x, gy: fit.y, id: this.drag.id, startX: this.drag.tx - r.left, startY: this.drag.ty - r.top - CONFIG.TOUCH_OFFSET }); } else { document.getElementById('s'+this.drag.id).style.opacity = '1'; } this.drag = null; }
+
+            findBestFit(type, cx, cy) {
+                let best = null; let minDist = 130;
+                const tgx = Math.floor(cx / (this.renderSize / CONFIG.GRID)), tgy = Math.floor(cy / (this.renderSize / CONFIG.GRID));
+                for(let oy = -3; oy <= 3; oy++) {
+                    for(let ox = -3; ox <= 3; ox++) {
+                        const gx = tgx + ox, gy = tgy + oy;
+                        if(this.validate(type, gx, gy)) {
+                            const center = this.getPieceCenter(type, gx, gy);
+                            const d = Math.sqrt((cx - center.x)**2 + (cy - center.y)**2);
+                            if(d < minDist) { minDist = d; best = { x: gx, y: gy }; }
+                        }
+                    }
+                }
+                return best;
+            }
+
+            getPieceCenter(type, gx, gy) { const b = this.getB(type); return { x: CONFIG.GAP + (gx + b.w/2) * (this.cSize + CONFIG.GAP), y: CONFIG.GAP + (gy + b.h/2) * (this.cSize + CONFIG.GAP) }; }
+
+            validate(type, gx, gy) {
+                const shape = CONFIG.SHAPES.UTILITY[type] || CONFIG.SHAPES.STANDARD[type] || CONFIG.SHAPES.ELITE[type];
+                return shape.every(([px, py]) => { const tx = gx+px, ty = gy+py; return tx>=0 && tx<CONFIG.GRID && ty>=0 && ty<CONFIG.GRID && !this.logicalGrid[ty][tx]; });
+            }
+
+            runAutoPlay() {
+                const now = performance.now(); if(now - this.lastAutoTime < CONFIG.AUTO_DELAY) return; if(this.commandQueue.length > 0) return;
+                const tray = [0, 1, 2].filter(i => this.queue[i] !== null); if(tray.length === 0) return;
+                let bestMove = null; let highHeuristic = -Infinity;
+                for (const trayIdx of tray) {
+                    const type = this.queue[trayIdx];
+                    for (let gy = 0; gy < CONFIG.GRID; gy++) {
+                        for (let gx = 0; gx < CONFIG.GRID; gx++) {
+                            if (this.validate(type, gx, gy)) {
+                                const clears = this.simulateClears(type, gx, gy);
+                                const heuristic = (clears * 1000) + gy;
+                                if (heuristic > highHeuristic) { highHeuristic = heuristic; bestMove = { trayIdx, type, gx, gy }; }
+                            }
+                        }
+                    }
+                }
+                if (bestMove) {
+                    this.lastAutoTime = now; const slot = document.getElementById('s'+bestMove.trayIdx).getBoundingClientRect(); const r = this.canvas.getBoundingClientRect();
+                    this.commandQueue.push({ type: 'PLACE', shape: bestMove.type, gx: bestMove.gx, gy: bestMove.gy, id: bestMove.trayIdx, startX: slot.left + slot.width/2 - r.left, startY: slot.top + slot.height/2 - r.top - CONFIG.TOUCH_OFFSET });
+                    document.getElementById('s'+bestMove.trayIdx).style.opacity = '0';
+                }
+            }
+
+            simulateClears(type, gx, gy) {
+                const shape = CONFIG.SHAPES.UTILITY[type] || CONFIG.SHAPES.STANDARD[type] || CONFIG.SHAPES.ELITE[type];
+                const tempGrid = JSON.parse(JSON.stringify(this.logicalGrid));
+                shape.forEach(([px, py]) => tempGrid[gy+py][gx+px] = true);
+                let clears = 0;
+                for(let y=0; y<CONFIG.GRID; y++) if(tempGrid[y].every(x=>x)) clears++;
+                for(let x=0; x<CONFIG.GRID; x++) { let f=true; for(let y=0; y<CONFIG.GRID; y++) if(!tempGrid[y][x]) f=false; if(f) clears++; }
+                return clears;
+            }
+
+            checkLoss() {
+                const tray = this.queue.filter(p => p !== null);
+                const possible = tray.some(type => { for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) if(this.validate(type, x, y)) return true; } return false; });
+                if(!possible && tray.length > 0) { document.getElementById('final-score').textContent = this.score; document.getElementById('overlay').style.display = 'flex'; }
+            }
+
+            update(dt) {
+                if (this.isAuto) this.runAutoPlay();
+                while(this.commandQueue.length > 0) { const cmd = this.commandQueue.shift(); if(cmd.type === 'PLACE') this.executePlace(cmd); }
+                this.visualEntities.forEach(e => e.update(dt));
+                this.visualEntities = this.visualEntities.filter(e => !e.isDead);
+                this.popups.forEach(p => p.update(dt, (parent) => this.handleBadgeExplode(parent)));
+                this.popups = this.popups.filter(p => !p.isDead);
+                this.confetti.forEach(c => c.update(dt));
+                this.confetti = this.confetti.filter(c => c.life > 0);
+                this.shockwaves.forEach(s => s.update(dt));
+                this.shockwaves = this.shockwaves.filter(s => s.life > 0);
+                this.flares.forEach(f => f.update(dt));
+                this.flares = this.flares.filter(f => f.life > 0);
+                this.shards.forEach(s => s.update(dt));
+                this.shards = this.shards.filter(s => !s.isDead);
+                if(this.shake > 0) this.shake *= 0.9;
+            }
+
+            handleBadgeExplode(p) {
+                const power = p.val >= 400 ? 4 : (p.val > 100 ? 2.5 : 1);
+                this.shake = 5 * power;
+                const count = p.val >= 400 ? 150 : (p.val > 100 ? 80 : 30);
+                const explosionColor = p.isRainbow ? null : p.color;
+                for(let i=0; i<count; i++) this.confetti.push(new Confetti(p.x, p.y, power, explosionColor));
+                this.shockwaves.push(new Shockwave(p.x, p.y, power, p.isRainbow ? `hsl(${Math.random()*360}, 100%, 70%)` : p.color));
+                if (p.val > 100) {
+                    const newVal = p.val / 2;
+                    for (let i = 0; i < 2; i++) {
+                        const angle = -Math.PI/2 + (Math.random() - 0.5) * 1.5;
+                        const force = 400 + Math.random() * 200;
+                        this.flares.push(new VisualFlare(p.x, p.y, 0.8, p.isRainbow ? `hsl(${Math.random()*360}, 100%, 70%)` : p.color));
+                        this.popups.push(new ScorePopup(p.x, p.y - 10, newVal, {w: this.renderSize, h: this.renderSize}, Math.cos(angle) * force, Math.sin(angle) * force));
+                    }
+                }
+            }
+
+            executePlace(cmd) {
+                const shape = CONFIG.SHAPES.UTILITY[cmd.shape] || CONFIG.SHAPES.STANDARD[cmd.shape] || CONFIG.SHAPES.ELITE[cmd.shape];
+                const points = shape.length;
+                shape.forEach(([px, py]) => { const tx = cmd.gx + px, ty = cmd.gy + py; this.logicalGrid[ty][tx] = true; const targetX = CONFIG.GAP + tx * (this.cSize + CONFIG.GAP) + this.cSize/2; const targetY = CONFIG.GAP + ty * (this.cSize + CONFIG.GAP) + this.cSize/2; this.visualEntities.push(new VisualTile(cmd.startX, cmd.startY, targetX, targetY, this.cSize, {w: this.renderSize, h: this.renderSize})); });
+                const center = this.getPieceCenter(cmd.shape, cmd.gx, cmd.gy);
+                const p = new ScorePopup(center.x, center.y, points, {w: this.renderSize, h: this.renderSize});
+                this.flares.push(new VisualFlare(center.x, center.y, 1, p.isRainbow ? '#fff' : p.color));
+                this.popups.push(p);
+                this.queue[cmd.id] = null; this.score += points; this.checkLines();
+                if(this.queue.every(q => !q)) this.refill(); else this.checkLoss();
+                this.updateUI();
+            }
+
+            checkLines() {
+                let r=[], c=[];
+                for(let y=0; y<CONFIG.GRID; y++) if(this.logicalGrid[y].every(x=>x)) r.push(y);
+                for(let x=0; x<CONFIG.GRID; x++) { let f=true; for(let y=0; y<CONFIG.GRID; y++) if(!this.logicalGrid[y][x]) f=false; if(f) c.push(x); }
+                r.forEach(y => { for(let x=0; x<CONFIG.GRID; x++) { this.logicalGrid[y][x] = null; this.killVisual(x, y); }});
+                c.forEach(x => { for(let y=0; y<CONFIG.GRID; y++) { if(this.logicalGrid[y][x]) { this.killVisual(x, y); this.logicalGrid[y][x] = null; } }});
+                if(r.length + c.length > 0) {
+                    const combo = r.length + c.length;
+                    const clearPoints = Math.pow(combo, 2) * 100; this.score += clearPoints;
+                    const p = new ScorePopup(this.renderSize/2, this.renderSize/2, clearPoints, {w: this.renderSize, h: this.renderSize});
+                    this.flares.push(new VisualFlare(this.renderSize/2, this.renderSize/2, 2.5, p.isRainbow ? '#fff' : p.color));
+                    this.popups.push(p);
+                    this.updateUI();
+                }
+            }
+
+            killVisual(gx, gy) {
+                const tx = CONFIG.GAP + gx * (this.cSize + CONFIG.GAP) + this.cSize/2;
+                const ty = CONFIG.GAP + gy * (this.cSize + CONFIG.GAP) + this.cSize/2;
+                this.visualEntities.forEach(e => {
+                    if(!e.isExploded && Math.abs(e.tx - tx) < 1 && Math.abs(e.ty - ty) < 1) {
+                        e.isDead = true;
+                        const shardSize = this.cSize / 3;
+                        for (let sy = 0; sy < 3; sy++) {
+                            for (let sx = 0; sx < 3; sx++) {
+                                const shardX = (tx - this.cSize/2) + sx * shardSize + shardSize/2;
+                                const shardY = (ty - this.cSize/2) + sy * shardSize + shardSize/2;
+                                this.shards.push(new Shard(shardX, shardY, shardSize, {w: this.renderSize, h: this.renderSize}));
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateUI() { document.getElementById('ui-score').textContent = this.score; if(this.score > this.best) { this.best = this.score; localStorage.setItem('harambe_blocks_best', this.best); } document.getElementById('ui-best').textContent = this.best; }
+            gameLoop(time) { const delta = (time - this.lastTime) / 1000; this.lastTime = time; this.accumulator += Math.min(delta, 0.25); while(this.accumulator >= DT) { this.update(DT); this.accumulator -= DT; } this.render(); requestAnimationFrame(this.gameLoop.bind(this)); }
+
+            render() {
+                const ctx = this.ctx; ctx.clearRect(0, 0, this.renderSize, this.renderSize);
+                ctx.save(); if(this.shake > 0) ctx.translate((Math.random()-0.5)*this.shake, (Math.random()-0.5)*this.shake);
+                for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) { ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.beginPath(); ctx.roundRect(CONFIG.GAP + x*(this.cSize+CONFIG.GAP), CONFIG.GAP + y*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); } }
+                this.visualEntities.forEach(e => e.draw(ctx));
+                this.shards.forEach(s => s.draw(ctx));
+                this.shockwaves.forEach(s => s.draw(ctx));
+                this.flares.forEach(f => f.draw(ctx));
+                if(this.drag) {
+                    this.drag.tx = LERP(this.drag.tx, this.mouse.x, 0.25); this.drag.ty = LERP(this.drag.ty, this.mouse.y, 0.25);
+                    const r = this.canvas.getBoundingClientRect(); const cx = this.drag.tx - r.left, cy = this.drag.ty - r.top - CONFIG.TOUCH_OFFSET;
+                    const fit = this.findBestFit(this.drag.type, cx, cy);
+                    if(fit) {
+                        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+                        const shape = CONFIG.SHAPES.UTILITY[this.drag.type] || CONFIG.SHAPES.STANDARD[this.drag.type] || CONFIG.SHAPES.ELITE[this.drag.type];
+                        shape.forEach(([px, py]) => { ctx.beginPath(); ctx.roundRect(CONFIG.GAP + (fit.x+px)*(this.cSize+CONFIG.GAP), CONFIG.GAP + (fit.y+py)*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); });
+                    }
+                    this.drawPiece(ctx, this.drag.type, cx, cy, this.cSize * 1.1, 1);
+                }
+                this.popups.forEach(p => p.draw(ctx)); this.confetti.forEach(c => c.draw(ctx)); ctx.restore();
+            }
+
+            drawPiece(ctx, type, x, y, size, alpha) {
+                ctx.save(); ctx.globalAlpha = alpha;
+                const shape = CONFIG.SHAPES.UTILITY[type] || CONFIG.SHAPES.STANDARD[type] || CONFIG.SHAPES.ELITE[type];
+                const b = this.getB(type); ctx.translate(x - (b.w)*size/2, y - (b.h)*size/2);
+                shape.forEach(([px, py]) => { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(px*size + 1, py*size + 1, size - 2, size - 2, 10); ctx.fill(); });
+                ctx.restore();
+            }
+
+            getB(t) {
+                const shape = CONFIG.SHAPES.UTILITY[t] || CONFIG.SHAPES.STANDARD[t] || CONFIG.SHAPES.ELITE[t];
+                const maxX = Math.max(...shape.map(i=>i[0])), maxY = Math.max(...shape.map(i=>i[1]));
+                return { w: maxX + 1, h: maxY + 1 };
+            }
+        }
+        window.onload = () => new Engine();
+    </script>
+</body>
+</html>
