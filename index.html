@@ -8,14 +8,62 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
         :root { --bg: #050505; --white: #ffffff; }
-        body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; touch-action: none; user-select: none; }
-        #app { display: flex; flex-direction: column; height: 100vh; max-width: 500px; margin: 0 auto; padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem; }
-        header { height: 15%; display: flex; justify-content: space-between; align-items: center; position: relative; }
-        main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-        footer { height: 25%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 1rem; }
-        .score-val { font-size: 2.8rem; font-weight: 900; line-height: 1; }
+        body { 
+            background: var(--bg); 
+            color: var(--white); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            overflow: hidden; 
+            touch-action: none; 
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #app { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            height: 100dvh; 
+            max-width: 500px; 
+            margin: 0 auto; 
+            padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem;
+            box-sizing: border-box;
+        }
+        header { 
+            flex: 0 0 12%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            position: relative; 
+        }
+        main { 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+            min-height: 0; /* Important for flex shrink */
+        }
+        footer { 
+            flex: 0 0 22%; 
+            display: flex; 
+            gap: 0.5rem; 
+            align-items: center; 
+            justify-content: center; 
+            padding-bottom: 0.5rem;
+        }
+        .score-val { font-size: 2.5rem; font-weight: 900; line-height: 1; }
         .label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); }
-        .slot { flex: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .slot { 
+            flex: 1; 
+            aspect-ratio: 1/1; 
+            background: rgba(255,255,255,0.02);
+            border-radius: 1.25rem;
+            border: 1px solid rgba(255,255,255,0.05);
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer; 
+        }
         #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
         .btn-retry { margin-top: 2rem; padding: 1rem 3rem; background: #fff; color: #000; font-weight: 900; border-radius: 2rem; text-transform: uppercase; letter-spacing: 0.1em; transition: transform 0.2s; }
         .btn-retry:active { transform: scale(0.9); }
@@ -53,7 +101,7 @@
         const COLORS = { BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700' };
 
         const CONFIG = {
-            GRID: 10, GAP: 6, TOUCH_OFFSET: 130, GRAVITY: 1200, AUTO_DELAY: 750,
+            GRID: 10, GAP: 6, TOUCH_OFFSET: 130, GRAVITY: 700, AUTO_DELAY: 750,
             SHAPES: {
                 UTILITY: { I2h: [[0,0],[1,0]], I2v: [[0,0],[0,1]], L2_1: [[0,0],[0,1],[1,1]], L2_2: [[1,0],[0,1],[1,1]], L2_3: [[0,0],[1,0],[1,1]], L2_4: [[0,0],[1,0],[0,1]] },
                 STANDARD: { I3h: [[0,0],[1,0],[2,0]], I3v: [[0,0],[0,1],[0,2]], O: [[0,0],[1,0],[0,1],[1,1]], T1: [[1,0],[0,1],[1,1],[2,1]], T3: [[0,0],[1,0],[2,0],[1,1]], L1: [[0,0],[0,1],[0,2],[1,2]], J1: [[1,0],[1,1],[1,2],[0,2]], S1: [[1,0],[2,0],[0,1],[1,1]], Z1: [[0,0],[1,0],[1,1],[2,1]] },
@@ -108,8 +156,11 @@
         class Confetti {
             constructor(x, y, power = 1, color = null) {
                 const rain = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'];
-                this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * (500 * power); this.vy = (Math.random() - 0.8) * (700 * power);
-                this.color = color || rain[Math.floor(Math.random() * rain.length)]; this.life = 1.0; this.size = 3 + Math.random() * 5;
+                this.x = x; this.y = y;
+                this.vx = (Math.random() - 0.5) * (400 * power);
+                this.vy = (Math.random() - 0.8) * (600 * power);
+                this.color = color || rain[Math.floor(Math.random() * rain.length)];
+                this.life = 1.0; this.size = 3 + Math.random() * 5;
                 this.rotation = Math.random() * Math.PI * 2; this.rotV = (Math.random() - 0.5) * 30;
             }
             update(dt) { this.vy += CONFIG.GRAVITY * 0.5 * dt; this.x += this.vx * dt; this.y += this.vy * dt; this.rotation += this.rotV * dt; this.life -= dt * 0.7; }
@@ -118,15 +169,19 @@
 
         class ScorePopup {
             constructor(x, y, val, bounds, vx = null, vy = null) {
-                this.x = x; this.y = y; this.val = Math.floor(val); this.bounds = bounds; this.isDead = false;
-                this.vx = vx !== null ? vx : (Math.random() - 0.5) * 200; this.vy = vy !== null ? vy : -450 - Math.random() * 200; 
-                this.rotation = 0; this.rotV = (Math.random() - 0.5) * 8; this.radius = Math.max(18, Math.min(55, 14 + (this.val / 18)));
+                this.x = x; this.y = y; this.val = Math.floor(val); this.bounds = bounds;
+                this.isDead = false;
+                this.vx = vx !== null ? vx : (Math.random() - 0.5) * 200;
+                this.vy = vy !== null ? vy : -450 - Math.random() * 200; 
+                this.rotation = 0; this.rotV = (Math.random() - 0.5) * 8;
+                this.radius = Math.max(18, Math.min(55, 14 + (this.val / 18)));
                 this.pulse = 0; this.bounciness = 0.7; this.spawnScale = 0; this.targetScale = 1.0;
                 this.isRainbow = this.val >= 400;
                 if (!this.isRainbow) { if (this.val < 100) this.color = COLORS.BRONZE; else if (this.val === 100) this.color = COLORS.SILVER; else this.color = COLORS.GOLD; }
             }
             update(dt, onHit) {
-                this.vy += CONFIG.GRAVITY * dt; this.x += this.vx * dt; this.y += this.vy * dt; this.rotation += this.rotV * dt; this.pulse += dt * 10; this.vx *= 0.99; this.vy *= 0.99;
+                this.vy += CONFIG.GRAVITY * dt; this.x += this.vx * dt; this.y += this.vy * dt;
+                this.rotation += this.rotV * dt; this.pulse += dt * 10; this.vx *= 0.99; this.vy *= 0.99;
                 if (this.spawnScale < this.targetScale) this.spawnScale = Math.min(this.targetScale, this.spawnScale + dt * 6);
                 if (this.x <= this.radius) { this.x = this.radius; this.vx *= -this.bounciness; } else if (this.x >= this.bounds.w - this.radius) { this.x = this.bounds.w - this.radius; this.vx *= -this.bounciness; }
                 if (this.y <= this.radius) { this.y = this.radius; this.vy *= -this.bounciness; }
@@ -154,6 +209,11 @@
             impact() { this.scaleX = 1.4; this.scaleY = 0.6; }
             explode() { this.isExploded = true; this.isMoving = false; this.vx = (Math.random() - 0.5) * 400; this.vy = -400 - Math.random() * 400; this.rotV = (Math.random() - 0.5) * 15; }
             update(dt) {
+                if (this.isExploded) {
+                    this.vy += CONFIG.GRAVITY * 1.2 * dt; this.x += this.vx * dt; this.y += this.vy * dt; this.rotation += this.rotV * dt; this.alpha -= dt * 0.4;
+                    if (this.y >= this.bounds.h - this.size/2) { this.y = this.bounds.h - this.size/2; this.vx *= 0.8; this.vy = 0; this.rotV *= 0.8; }
+                    if (this.alpha <= 0) this.isDead = true; return;
+                }
                 if (this.isMoving) {
                     this.moveTime = Math.min(1, this.moveTime + dt * 6); const t = EASE_CUBIC_OUT(this.moveTime); this.x = LERP(this.startX, this.tx, t); this.y = LERP(this.startY, this.ty, t); if (this.moveTime >= 1) { this.isMoving = false; this.impact(); }
                 }
@@ -187,7 +247,8 @@
             }
 
             resize() {
-                const p = this.canvas.parentElement; const size = Math.min(p.clientWidth, p.clientHeight) - 20;
+                const p = this.canvas.parentElement; 
+                const size = Math.min(p.clientWidth, p.clientHeight) - 10;
                 const dpr = window.devicePixelRatio || 2;
                 this.canvas.width = size * dpr; this.canvas.height = size * dpr;
                 this.canvas.style.width = size + 'px'; this.canvas.style.height = size + 'px';
