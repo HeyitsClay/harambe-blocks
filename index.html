@@ -8,62 +8,14 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
         :root { --bg: #050505; --white: #ffffff; }
-        body { 
-            background: var(--bg); 
-            color: var(--white); 
-            font-family: 'Inter', sans-serif; 
-            margin: 0; 
-            overflow: hidden; 
-            touch-action: none; 
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        #app { 
-            display: flex; 
-            flex-direction: column; 
-            height: 100vh; 
-            height: 100dvh; 
-            max-width: 500px; 
-            margin: 0 auto; 
-            padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem;
-            box-sizing: border-box;
-        }
-        header { 
-            flex: 0 0 12%; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            position: relative; 
-        }
-        main { 
-            flex: 1; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            position: relative;
-            min-height: 0; /* Important for flex shrink */
-        }
-        footer { 
-            flex: 0 0 22%; 
-            display: flex; 
-            gap: 0.5rem; 
-            align-items: center; 
-            justify-content: center; 
-            padding-bottom: 0.5rem;
-        }
+        body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+        #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-width: 500px; margin: 0 auto; padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem; box-sizing: border-box; }
+        header { flex: 0 0 12%; display: flex; justify-content: space-between; align-items: center; position: relative; }
+        main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 0; }
+        footer { flex: 0 0 22%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 0.5rem; }
         .score-val { font-size: 2.5rem; font-weight: 900; line-height: 1; }
         .label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); }
-        .slot { 
-            flex: 1; 
-            aspect-ratio: 1/1; 
-            background: rgba(255,255,255,0.02);
-            border-radius: 1.25rem;
-            border: 1px solid rgba(255,255,255,0.05);
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            cursor: pointer; 
-        }
+        .slot { flex: 1; aspect-ratio: 1/1; background: rgba(255,255,255,0.02); border-radius: 1.25rem; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; }
         #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
         .btn-retry { margin-top: 2rem; padding: 1rem 3rem; background: #fff; color: #000; font-weight: 900; border-radius: 2rem; text-transform: uppercase; letter-spacing: 0.1em; transition: transform 0.2s; }
         .btn-retry:active { transform: scale(0.9); }
@@ -101,7 +53,7 @@
         const COLORS = { BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700' };
 
         const CONFIG = {
-            GRID: 10, GAP: 6, TOUCH_OFFSET: 130, GRAVITY: 700, AUTO_DELAY: 750,
+            GRID: 10, GAP: 6, TOUCH_OFFSET: 140, GRAVITY: 700, AUTO_DELAY: 750,
             SHAPES: {
                 UTILITY: { I2h: [[0,0],[1,0]], I2v: [[0,0],[0,1]], L2_1: [[0,0],[0,1],[1,1]], L2_2: [[1,0],[0,1],[1,1]], L2_3: [[0,0],[1,0],[1,1]], L2_4: [[0,0],[1,0],[0,1]] },
                 STANDARD: { I3h: [[0,0],[1,0],[2,0]], I3v: [[0,0],[0,1],[0,2]], O: [[0,0],[1,0],[0,1],[1,1]], T1: [[1,0],[0,1],[1,1],[2,1]], T3: [[0,0],[1,0],[2,0],[1,1]], L1: [[0,0],[0,1],[0,2],[1,2]], J1: [[1,0],[1,1],[1,2],[0,2]], S1: [[1,0],[2,0],[0,1],[1,1]], Z1: [[0,0],[1,0],[1,1],[2,1]] },
@@ -112,33 +64,17 @@
         class Shard {
             constructor(x, y, size, bounds) {
                 this.x = x; this.y = y; this.size = size; this.bounds = bounds;
-                this.vx = (Math.random() - 0.5) * 500;
-                this.vy = -300 - Math.random() * 500;
-                this.rotation = Math.random() * Math.PI * 2;
-                this.rotV = (Math.random() - 0.5) * 20;
-                this.life = 1.0;
-                this.isDead = false;
+                this.vx = (Math.random() - 0.5) * 500; this.vy = -300 - Math.random() * 500;
+                this.rotation = Math.random() * Math.PI * 2; this.rotV = (Math.random() - 0.5) * 20;
+                this.life = 1.0; this.isDead = false;
             }
             update(dt) {
-                this.vy += CONFIG.GRAVITY * dt;
-                this.x += this.vx * dt;
-                this.y += this.vy * dt;
-                this.rotation += this.rotV * dt;
-                this.life -= dt * 0.5;
-                if (this.y >= this.bounds.h - this.size) {
-                    this.y = this.bounds.h - this.size;
-                    this.vy *= -0.3;
-                    this.vx *= 0.8;
-                }
+                this.vy += CONFIG.GRAVITY * dt; this.x += this.vx * dt; this.y += this.vy * dt;
+                this.rotation += this.rotV * dt; this.life -= dt * 0.5;
+                if (this.y >= this.bounds.h - this.size) { this.y = this.bounds.h - this.size; this.vy *= -0.3; this.vx *= 0.8; }
                 if (this.life <= 0) this.isDead = true;
             }
-            draw(ctx) {
-                ctx.save(); ctx.globalAlpha = Math.max(0, this.life);
-                ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
-                ctx.restore();
-            }
+            draw(ctx) { ctx.save(); ctx.globalAlpha = Math.max(0, this.life); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.fillStyle = '#fff'; ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size); ctx.restore(); }
         }
 
         class VisualFlare {
@@ -156,11 +92,8 @@
         class Confetti {
             constructor(x, y, power = 1, color = null) {
                 const rain = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'];
-                this.x = x; this.y = y;
-                this.vx = (Math.random() - 0.5) * (400 * power);
-                this.vy = (Math.random() - 0.8) * (600 * power);
-                this.color = color || rain[Math.floor(Math.random() * rain.length)];
-                this.life = 1.0; this.size = 3 + Math.random() * 5;
+                this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * (400 * power); this.vy = (Math.random() - 0.8) * (700 * power);
+                this.color = color || rain[Math.floor(Math.random() * rain.length)]; this.life = 1.0; this.size = 3 + Math.random() * 5;
                 this.rotation = Math.random() * Math.PI * 2; this.rotV = (Math.random() - 0.5) * 30;
             }
             update(dt) { this.vy += CONFIG.GRAVITY * 0.5 * dt; this.x += this.vx * dt; this.y += this.vy * dt; this.rotation += this.rotV * dt; this.life -= dt * 0.7; }
@@ -169,12 +102,9 @@
 
         class ScorePopup {
             constructor(x, y, val, bounds, vx = null, vy = null) {
-                this.x = x; this.y = y; this.val = Math.floor(val); this.bounds = bounds;
-                this.isDead = false;
-                this.vx = vx !== null ? vx : (Math.random() - 0.5) * 200;
-                this.vy = vy !== null ? vy : -450 - Math.random() * 200; 
-                this.rotation = 0; this.rotV = (Math.random() - 0.5) * 8;
-                this.radius = Math.max(18, Math.min(55, 14 + (this.val / 18)));
+                this.x = x; this.y = y; this.val = Math.floor(val); this.bounds = bounds; this.isDead = false;
+                this.vx = vx !== null ? vx : (Math.random() - 0.5) * 200; this.vy = vy !== null ? vy : -450 - Math.random() * 200; 
+                this.rotation = 0; this.rotV = (Math.random() - 0.5) * 8; this.radius = Math.max(18, Math.min(55, 14 + (this.val / 18)));
                 this.pulse = 0; this.bounciness = 0.7; this.spawnScale = 0; this.targetScale = 1.0;
                 this.isRainbow = this.val >= 400;
                 if (!this.isRainbow) { if (this.val < 100) this.color = COLORS.BRONZE; else if (this.val === 100) this.color = COLORS.SILVER; else this.color = COLORS.GOLD; }
@@ -232,6 +162,7 @@
                 this.commandQueue = []; this.queue = [null, null, null];
                 this.score = 0; this.best = localStorage.getItem('harambe_blocks_best') || 0;
                 this.drag = null; this.mouse = { x: 0, y: 0 }; this.accumulator = 0; this.lastTime = 0; this.shake = 0; this.isAuto = false; this.lastAutoTime = 0;
+                this.liftOffset = 0; // Animating vertical lift
                 this.init();
             }
 
@@ -277,9 +208,29 @@
                 el.appendChild(can); el.style.opacity = '1';
             }
 
-            onStart(e) { if (this.isAuto) return; const el = e.target.closest('.slot'); if(el && this.queue[el.dataset.id]) { this.drag = { type: this.queue[el.dataset.id], id: el.dataset.id, tx: e.clientX, ty: e.clientY }; el.style.opacity = '0'; } }
+            onStart(e) {
+                if (this.isAuto) return;
+                const el = e.target.closest('.slot');
+                if(el && this.queue[el.dataset.id]) {
+                    this.mouse.x = e.clientX;
+                    this.mouse.y = e.clientY;
+                    this.drag = { type: this.queue[el.dataset.id], id: el.dataset.id, tx: e.clientX, ty: e.clientY };
+                    this.liftOffset = 0; // Reset lift for start
+                    el.style.opacity = '0';
+                }
+            }
+
             onMove(e) { this.mouse.x = e.clientX; this.mouse.y = e.clientY; }
-            onEnd() { if(!this.drag) return; const r = this.canvas.getBoundingClientRect(); const fit = this.findBestFit(this.drag.type, this.drag.tx - r.left, this.drag.ty - r.top - CONFIG.TOUCH_OFFSET); if(fit) { this.commandQueue.push({ type: 'PLACE', shape: this.drag.type, gx: fit.x, gy: fit.y, id: this.drag.id, startX: this.drag.tx - r.left, startY: this.drag.ty - r.top - CONFIG.TOUCH_OFFSET }); } else { document.getElementById('s'+this.drag.id).style.opacity = '1'; } this.drag = null; }
+
+            onEnd() {
+                if(!this.drag) return;
+                const r = this.canvas.getBoundingClientRect();
+                const fit = this.findBestFit(this.drag.type, this.drag.tx - r.left, this.drag.ty - r.top - this.liftOffset);
+                if(fit) {
+                    this.commandQueue.push({ type: 'PLACE', shape: this.drag.type, gx: fit.x, gy: fit.y, id: this.drag.id, startX: this.drag.tx - r.left, startY: this.drag.ty - r.top - this.liftOffset });
+                } else { document.getElementById('s'+this.drag.id).style.opacity = '1'; }
+                this.drag = null;
+            }
 
             findBestFit(type, cx, cy) {
                 let best = null; let minDist = 130;
@@ -359,6 +310,10 @@
                 this.shards.forEach(s => s.update(dt));
                 this.shards = this.shards.filter(s => !s.isDead);
                 if(this.shake > 0) this.shake *= 0.9;
+                
+                // Lift Spring
+                if (this.drag) this.liftOffset = LERP(this.liftOffset, CONFIG.TOUCH_OFFSET, 0.2);
+                else this.liftOffset = 0;
             }
 
             handleBadgeExplode(p) {
@@ -438,10 +393,15 @@
                 this.shockwaves.forEach(s => s.draw(ctx));
                 this.flares.forEach(f => f.draw(ctx));
                 if(this.drag) {
-                    this.drag.tx = LERP(this.drag.tx, this.mouse.x, 0.25); this.drag.ty = LERP(this.drag.ty, this.mouse.y, 0.25);
-                    const r = this.canvas.getBoundingClientRect(); const cx = this.drag.tx - r.left, cy = this.drag.ty - r.top - CONFIG.TOUCH_OFFSET;
+                    this.drag.tx = LERP(this.drag.tx, this.mouse.x, 0.2); this.drag.ty = LERP(this.drag.ty, this.mouse.y, 0.2);
+                    const r = this.canvas.getBoundingClientRect(); 
+                    let cx = this.drag.tx - r.left, cy = this.drag.ty - r.top - this.liftOffset;
                     const fit = this.findBestFit(this.drag.type, cx, cy);
                     if(fit) {
+                        const center = this.getPieceCenter(this.drag.type, fit.x, fit.y);
+                        // MAGNETIC SNAP: Visual piece leans toward grid
+                        cx = LERP(cx, center.x, 0.6);
+                        cy = LERP(cy, center.y, 0.6);
                         ctx.fillStyle = 'rgba(255,255,255,0.12)';
                         const shape = CONFIG.SHAPES.UTILITY[this.drag.type] || CONFIG.SHAPES.STANDARD[this.drag.type] || CONFIG.SHAPES.ELITE[this.drag.type];
                         shape.forEach(([px, py]) => { ctx.beginPath(); ctx.roundRect(CONFIG.GAP + (fit.x+px)*(this.cSize+CONFIG.GAP), CONFIG.GAP + (fit.y+py)*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); });
