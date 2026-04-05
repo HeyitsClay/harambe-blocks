@@ -16,7 +16,7 @@
         footer { flex: 0 0 22%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 0.5rem; }
         .score-val { font-size: 2.2rem; font-weight: 900; line-height: 1; }
         .label { font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); }
-        .slot { flex: 1; aspect-ratio: 1/1; background: rgba(255,255,255,0.02); border-radius: 1.25rem; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+        .slot { flex: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
         #fever-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
         #fever-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #ff00ff, #00ffff); transition: width 0.3s cubic-bezier(0.2, 1, 0.3, 1); box-shadow: 0 0 10px #ff00ff; }
         #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
@@ -60,7 +60,7 @@
         const COLORS = { BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700', FEVER: '#ff00ff' };
 
         const CONFIG = {
-            GRID: 10, GAP: 6, TOUCH_OFFSET: 140, GRAVITY: 700, AUTO_DELAY: 750,
+            GRID: 8, GAP: 6, TOUCH_OFFSET: 140, GRAVITY: 700, AUTO_DELAY: 750,
             SHAPES: {
                 UTILITY: { I2h: [[0,0],[1,0]], I2v: [[0,0],[0,1]], L2_1: [[0,0],[0,1],[1,1]], L2_2: [[1,0],[0,1],[1,1]], L2_3: [[0,0],[1,0],[1,1]], L2_4: [[0,0],[1,0],[0,1]] },
                 STANDARD: { I3h: [[0,0],[1,0],[2,0]], I3v: [[0,0],[0,1],[0,2]], O: [[0,0],[1,0],[0,1],[1,1]], T1: [[1,0],[0,1],[1,1],[2,1]], T3: [[0,0],[1,0],[2,0],[1,1]], L1: [[0,0],[0,1],[0,2],[1,2]], J1: [[1,0],[1,1],[1,2],[0,2]], S1: [[1,0],[2,0],[0,1],[1,1]], Z1: [[0,0],[1,0],[1,1],[2,1]] },
@@ -214,7 +214,7 @@
                 const el = document.getElementById('s'+i); el.innerHTML = ''; if(!this.queue[i]) return;
                 const can = document.createElement('canvas'); can.width = 120; can.height = 120;
                 const ctx = can.getContext('2d'); const b = this.getB(this.queue[i]);
-                const scale = Math.max(b.w, b.h) > 3 ? 14 : 18;
+                const scale = Math.max(b.w, b.h) > 3 ? 20 : 26;
                 this.drawPiece(ctx, this.queue[i], 60, 60, scale, 1);
                 el.appendChild(can); el.style.opacity = '1';
             }
@@ -279,7 +279,11 @@
             checkLoss() {
                 const tray = this.queue.filter(p => p !== null);
                 const possible = tray.some(type => { for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) if(this.validate(type, x, y)) return true; } return false; });
-                if(!possible && tray.length > 0) { document.getElementById('final-score').textContent = this.score; document.getElementById('overlay').style.display = 'flex'; }
+                if(!possible && tray.length > 0) { 
+                    this.visualEntities.forEach(e => { if(!e.isExploded) e.explode(); });
+                    document.getElementById('final-score').textContent = this.score; 
+                    setTimeout(() => { document.getElementById('overlay').style.display = 'flex'; }, 1500);
+                }
             }
 
             update(dt) {
