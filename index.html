@@ -4,16 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Harambe Blocks</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Harambe Blocks">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;900&display=swap');
         :root { --bg: #050505; --white: #ffffff; --fever: #ff00ff; }
         body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
-        #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-width: 500px; margin: 0 auto; padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem; box-sizing: border-box; transition: background 0.3s; }
+        #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-width: 500px; margin: 0 auto; padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem; box-sizing: border-box; transition: background 0.3s; position: relative; }
         #app.fever { background: radial-gradient(circle at 50% 50%, #200020 0%, #050505 100%); }
         header { flex: 0 0 15%; display: flex; justify-content: space-between; align-items: center; position: relative; }
-        main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 0; }
-        footer { flex: 0 0 22%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 0.5rem; }
+        main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 0; pointer-events: none; }
+        #game { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        footer { flex: 0 0 22%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 0.5rem; position: relative; z-index: 5; }
         .score-val { font-size: 2.2rem; font-weight: 900; line-height: 1; }
         .label { font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); }
         .slot { flex: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
@@ -43,7 +48,8 @@
             <div class="text-right"><div class="label">Best Legacy</div><div id="ui-best" class="text-xl font-bold opacity-40">0</div></div>
             <div id="fever-container"><div id="fever-bar"></div></div>
         </header>
-        <main id="stage"><canvas id="game"></canvas></main>
+        <main id="stage"></main>
+        <canvas id="game"></canvas>
         <footer>
             <div id="s0" class="slot" data-id="0"></div>
             <div id="s1" class="slot" data-id="1"></div>
@@ -59,134 +65,22 @@
 
         const COLORS = { BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700', FEVER: '#ff00ff' };
 
-        class SoundEngine {
-            constructor() {
-                this.ctx = null;
-                this.enabled = false;
-            }
-            init() {
-                if (this.ctx) return;
-                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                this.enabled = true;
-            }
-            osc(type, freq, start, duration, vol) {
-                if (!this.enabled) return;
-                const o = this.ctx.createOscillator();
-                const g = this.ctx.createGain();
-                o.type = type;
-                o.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                g.gain.setValueAtTime(vol, this.ctx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
-                o.connect(g);
-                g.connect(this.ctx.destination);
-                o.start();
-                o.stop(this.ctx.currentTime + duration);
-            }
-            playLift() { this.osc('triangle', 440, 0, 0.1, 0.1); }
-            playPlace() { this.osc('sine', 150, 0, 0.2, 0.3); this.osc('triangle', 100, 0, 0.1, 0.2); }
-            playSnap() { this.osc('sine', 200, 0, 0.1, 0.1); }
-            playClear(count) {
-                for (let i = 0; i < count; i++) {
-                    const f = 440 * Math.pow(1.059, i * 2);
-                    this.osc('sine', f, 0, 0.5, 0.15);
-                    this.osc('triangle', f * 2, 0, 0.3, 0.05);
-                }
-            }
-            playPerfect() {
-                [440, 554.37, 659.25, 880].forEach((f, i) => {
-                    setTimeout(() => this.osc('sine', f, 0, 0.8, 0.2), i * 100);
-                });
-            }
-            playPop(isLarge = false) {
-                const noise = this.ctx.createBufferSource();
-                const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-                noise.buffer = buffer;
-                const g = this.ctx.createGain();
-                g.gain.setValueAtTime(isLarge ? 0.3 : 0.1, this.ctx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + (isLarge ? 0.3 : 0.1));
-                noise.connect(g); g.connect(this.ctx.destination);
-                noise.start();
-            }
-            playFever() {
-                this.osc('sine', 880, 0, 0.5, 0.2);
-                setTimeout(() => this.osc('sine', 1320, 0, 0.5, 0.2), 100);
-            }
-            playExplode() {
-                for(let i=0; i<10; i++) {
-                    setTimeout(() => this.osc('sine', 50 + Math.random()*100, 0, 0.5, 0.3), i * 50);
-                }
-            }
-        }
-
-        const SFX = new SoundEngine();
+        const THEMES = [
+            { name: 'Classic', bg: '#050505', block: '#ffffff', accent: '#ff00ff' },
+            { name: 'Emerald', bg: '#051005', block: '#ffffff', accent: '#00ff88' },
+            { name: 'Ocean', bg: '#050515', block: '#ffffff', accent: '#0088ff' },
+            { name: 'Sunset', bg: '#100500', block: '#ffffff', accent: '#ff8800' },
+            { name: 'Royal', bg: '#080010', block: '#ffffff', accent: '#aa00ff' }
+        ];
 
         const CONFIG = {
-            GRID: 6, GAP: 6, TOUCH_OFFSET: 140, GRAVITY: 700, AUTO_DELAY: 750,
+            GRID: 8, GAP: 6, TOUCH_OFFSET: 140, GRAVITY: 700, AUTO_DELAY: 750,
             SHAPES: {
-                UTILITY: { I1: [[0,0]], I2h: [[0,0],[1,0]], I2v: [[0,0],[0,1]], L2: [[0,0],[0,1],[1,1]] },
-                STANDARD: { I3h: [[0,0],[1,0],[2,0]], I3v: [[0,0],[0,1],[0,2]], O: [[0,0],[1,0],[0,1],[1,1]], T: [[1,0],[0,1],[1,1],[2,1]], J: [[1,0],[1,1],[1,2],[0,2]], S: [[1,0],[2,0],[0,1],[1,1]] },
-                ELITE: { Plus: [[1,0],[0,1],[1,1],[2,1],[1,2]], Cross: [[0,0],[2,0],[1,1],[0,2],[2,2]], Corner: [[0,0],[1,0],[2,0],[0,1],[0,2]], Stair: [[0,0],[1,0],[1,1],[2,1],[2,2]] }
+                UTILITY: { I2h: [[0,0],[1,0]], I2v: [[0,0],[0,1]], L2_1: [[0,0],[0,1],[1,1]], L2_2: [[1,0],[0,1],[1,1]], L2_3: [[0,0],[1,0],[1,1]], L2_4: [[0,0],[1,0],[0,1]] },
+                STANDARD: { I3h: [[0,0],[1,0],[2,0]], I3v: [[0,0],[0,1],[0,2]], O: [[0,0],[1,0],[0,1],[1,1]], T1: [[1,0],[0,1],[1,1],[2,1]], T3: [[0,0],[1,0],[2,0],[1,1]], L1: [[0,0],[0,1],[0,2],[1,2]], J1: [[1,0],[1,1],[1,2],[0,2]], S1: [[1,0],[2,0],[0,1],[1,1]], Z1: [[0,0],[1,0],[1,1],[2,1]] },
+                ELITE: { I4h: [[0,0],[1,0],[2,0],[3,0]], I4v: [[0,0],[0,1],[0,2],[0,3]], Sq3: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]], L3_1: [[0,0],[0,1],[0,2],[1,2],[2,2]], L3_3: [[0,0],[1,0],[2,0],[2,1],[2,2]], D3_1: [[0,0],[1,1],[2,2]], D3_2: [[2,0],[1,1],[0,2]] }
             }
         };
-
-        class ThemeManager {
-            constructor() {
-                this.index = 0;
-                this.current = this.generateTheme(0);
-            }
-            generateTheme(idx) {
-                if (idx === 0) return { name: "Origin", fill: '#fff' };
-
-                // Tier 1: Basic Colors (1-12)
-                if (idx <= 12) {
-                    return { name: `Vivid ${idx}`, fill: `hsl(${(idx * 30) % 360}, 70%, 60%)` };
-                }
-
-                // Tier 2: Color Pairs / Gradients (13-100)
-                if (idx <= 100) {
-                    const h1 = (idx * 40) % 360;
-                    const h2 = (h1 + 180) % 360;
-                    return { 
-                        name: `Duo ${idx}`, 
-                        isGradient: true,
-                        getFill: (ctx, x, y, size) => {
-                            const g = ctx.createLinearGradient(x - size/2, y - size/2, x + size/2, y + size/2);
-                            g.addColorStop(0, `hsl(${h1}, 80%, 60%)`);
-                            g.addColorStop(1, `hsl(${h2}, 80%, 60%)`);
-                            return g;
-                        }
-                    };
-                }
-
-                // Tier 3: Animated / Special (101+)
-                const time = performance.now() / 1000;
-                const baseHue = (idx * 10 + time * 50) % 360;
-                return {
-                    name: `Elite ${idx}`,
-                    isAnimated: true,
-                    getFill: (ctx, x, y, size) => {
-                        const h = (baseHue + (x+y)/2) % 360;
-                        if (idx % 2 === 0) {
-                            const g = ctx.createRadialGradient(x, y, 0, x, y, size);
-                            g.addColorStop(0, `hsl(${h}, 100%, 70%)`);
-                            g.addColorStop(1, `hsl(${(h+40)%360}, 100%, 40%)`);
-                            return g;
-                        }
-                        return `hsl(${h}, 90%, 60%)`;
-                    },
-                    stroke: idx % 5 === 0 ? '#fff' : null
-                };
-            }
-            next() {
-                this.index++;
-                this.current = this.generateTheme(this.index);
-                console.log("Theme Advanced:", this.current.name);
-            }
-        }
-
-        const THEMES = new ThemeManager();
 
         class Shard {
             constructor(x, y, size, bounds, color = '#fff') {
@@ -279,31 +173,7 @@
                 this.velScaleX += ax * dt; this.velScaleY += ay * dt; this.scaleX += this.velScaleX * dt; this.scaleY += this.velScaleY * dt;
                 this.alpha = LERP(this.alpha, 1, 0.2);
             }
-            draw(ctx) {
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, this.alpha);
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation);
-                ctx.scale(this.scaleX, this.scaleY);
-                
-                if (THEMES.current.isGradient || THEMES.current.isAnimated) {
-                    ctx.fillStyle = THEMES.current.getFill(ctx, 0, 0, this.size);
-                } else {
-                    ctx.fillStyle = THEMES.current.fill;
-                }
-                
-                ctx.beginPath();
-                ctx.roundRect(-this.size/2 + 1, -this.size/2 + 1, this.size - 2, this.size - 2, 10);
-                ctx.fill();
-                
-                if (THEMES.current.stroke) {
-                    ctx.strokeStyle = THEMES.current.stroke;
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                }
-                
-                ctx.restore();
-            }
+            draw(ctx) { ctx.save(); ctx.globalAlpha = Math.max(0, this.alpha); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.scale(this.scaleX, this.scaleY); ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--white').trim(); ctx.beginPath(); ctx.roundRect(-this.size/2 + 1, -this.size/2 + 1, this.size - 2, this.size - 2, 10); ctx.fill(); ctx.restore(); }
         }
 
         class Engine {
@@ -316,27 +186,40 @@
                 this.drag = null; this.mouse = { x: 0, y: 0 }; this.accumulator = 0; this.lastTime = 0; this.shake = 0; this.isAuto = false; this.lastAutoTime = 0;
                 this.liftOffset = 0;
                 this.wave = 1; this.fever = 0; this.isFever = false; this.feverTimer = 0;
+                this.themeIndex = 0;
+                this.gridOffset = { x: 0, y: 0 };
                 this.init();
             }
 
             init() {
                 this.resize(); window.onresize = () => this.resize(); this.refill();
-                const start = (e) => { SFX.init(); this.onStart(e.touches ? e.touches[0] : e); };
+                const start = (e) => this.onStart(e.touches ? e.touches[0] : e);
                 const move = (e) => this.onMove(e.touches ? e.touches[0] : e);
                 const end = () => this.onEnd();
                 window.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
                 window.addEventListener('touchstart', start, {passive:false}); window.addEventListener('touchmove', move, {passive:false}); window.addEventListener('touchend', end);
-                document.getElementById('dev-auto').onclick = (e) => { SFX.init(); this.isAuto = !this.isAuto; e.target.classList.toggle('active', this.isAuto); };
+                document.getElementById('dev-auto').onclick = (e) => { this.isAuto = !this.isAuto; e.target.classList.toggle('active', this.isAuto); };
+                if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
                 requestAnimationFrame(this.gameLoop.bind(this));
             }
 
             resize() {
-                const p = this.canvas.parentElement; const size = Math.min(p.clientWidth, p.clientHeight) - 10;
+                const app = document.getElementById('app');
+                const stage = document.getElementById('stage');
                 const dpr = window.devicePixelRatio || 2;
-                this.canvas.width = size * dpr; this.canvas.height = size * dpr;
-                this.canvas.style.width = size + 'px'; this.canvas.style.height = size + 'px';
-                this.ctx.scale(dpr, dpr); this.renderSize = size;
-                this.cSize = (size - (CONFIG.GAP * (CONFIG.GRID + 1))) / CONFIG.GRID;
+                this.canvas.width = app.clientWidth * dpr;
+                this.canvas.height = app.clientHeight * dpr;
+                this.ctx.scale(dpr, dpr);
+                
+                const sRect = stage.getBoundingClientRect();
+                const aRect = app.getBoundingClientRect();
+                this.gridOffset.x = sRect.left - aRect.left;
+                this.gridOffset.y = sRect.top - aRect.top;
+                
+                this.renderSize = Math.min(sRect.width, sRect.height) - 10;
+                this.cSize = (this.renderSize - (CONFIG.GAP * (CONFIG.GRID + 1))) / CONFIG.GRID;
+                this.gridOffset.x += (sRect.width - this.renderSize) / 2;
+                this.gridOffset.y += (sRect.height - this.renderSize) / 2;
             }
 
             refill() {
@@ -345,11 +228,12 @@
                 if (this.isFever) {
                     this.queue[0] = getRand(utl); this.queue[1] = getRand(utl); this.queue[2] = getRand(utl);
                 } else {
-                    if (this.wave === 4) { this.queue[0] = getRand(utl); this.queue[1] = getRand(std); this.queue[2] = getRand(utl); this.wave = 1; }
-                    else if (this.wave === 3) { this.queue[0] = getRand(std); this.queue[1] = getRand(std); this.queue[2] = getRand(std); this.wave++; }
-                    else { this.queue[0] = getRand(utl); this.queue[1] = getRand(std); this.queue[2] = Math.random() > 0.9 ? getRand(elt) : getRand(std); this.wave++; }
+                    if (this.wave === 4) { this.queue[0] = getRand(utl); this.queue[1] = 'I4h'; this.queue[2] = getRand(utl); this.wave = 1; }
+                    else if (this.wave === 3) { this.queue[0] = getRand(elt); this.queue[1] = getRand(std); this.queue[2] = getRand(elt); this.wave++; }
+                    else { this.queue[0] = getRand(utl); this.queue[1] = getRand(std); this.queue[2] = Math.random() > 0.5 ? getRand(std) : getRand(elt); this.wave++; }
                 }
-                document.getElementById('wave-indicator').textContent = this.isFever ? "FEVER MODE" : `WAVE ${this.wave}`;
+                const theme = THEMES[this.themeIndex];
+                document.getElementById('wave-indicator').textContent = this.isFever ? "FEVER MODE" : theme.name.toUpperCase();
                 for(let i=0; i<3; i++) this.updateTrayUI(i);
                 this.checkLoss();
             }
@@ -363,18 +247,19 @@
                 el.appendChild(can); el.style.opacity = '1';
             }
 
-            onStart(e) { if (this.isAuto) return; const el = e.target.closest('.slot'); if(el && this.queue[el.dataset.id]) { SFX.playLift(); this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.drag = { type: this.queue[el.dataset.id], id: el.dataset.id, tx: e.clientX, ty: e.clientY }; this.liftOffset = 0; el.style.opacity = '0'; } }
+            onStart(e) { if (this.isAuto) return; const el = e.target.closest('.slot'); if(el && this.queue[el.dataset.id]) { this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.drag = { type: this.queue[el.dataset.id], id: el.dataset.id, tx: e.clientX, ty: e.clientY }; this.liftOffset = 0; el.style.opacity = '0'; } }
             onMove(e) { this.mouse.x = e.clientX; this.mouse.y = e.clientY; }
-            onEnd() { if(!this.drag) return; const r = this.canvas.getBoundingClientRect(); const fit = this.findBestFit(this.drag.type, this.drag.tx - r.left, this.drag.ty - r.top - this.liftOffset); if(fit) { this.commandQueue.push({ type: 'PLACE', shape: this.drag.type, gx: fit.x, gy: fit.y, id: this.drag.id, startX: this.drag.tx - r.left, startY: this.drag.ty - r.top - this.liftOffset }); } else { SFX.playSnap(); document.getElementById('s'+this.drag.id).style.opacity = '1'; } this.drag = null; }
+            onEnd() { if(!this.drag) return; const r = this.canvas.getBoundingClientRect(); const fit = this.findBestFit(this.mouse.x - r.left, this.mouse.y - r.top - this.liftOffset); if(fit) { this.commandQueue.push({ type: 'PLACE', shape: this.drag.type, gx: fit.x, gy: fit.y, id: this.drag.id, startX: this.drag.tx - r.left, startY: this.drag.ty - r.top - this.liftOffset }); } else { document.getElementById('s'+this.drag.id).style.opacity = '1'; } this.drag = null; }
 
-            findBestFit(type, cx, cy) {
+            findBestFit(cx, cy) {
                 let best = null; let minDist = 130;
-                const tgx = Math.floor(cx / (this.renderSize / CONFIG.GRID)), tgy = Math.floor(cy / (this.renderSize / CONFIG.GRID));
+                const tgx = Math.floor((cx - this.gridOffset.x) / (this.renderSize / CONFIG.GRID));
+                const tgy = Math.floor((cy - this.gridOffset.y) / (this.renderSize / CONFIG.GRID));
                 for(let oy = -3; oy <= 3; oy++) {
                     for(let ox = -3; ox <= 3; ox++) {
                         const gx = tgx + ox, gy = tgy + oy;
-                        if(this.validate(type, gx, gy)) {
-                            const center = this.getPieceCenter(type, gx, gy);
+                        if(this.validate(this.drag.type, gx, gy)) {
+                            const center = this.getPieceCenter(this.drag.type, gx, gy);
                             const d = Math.sqrt((cx - center.x)**2 + (cy - center.y)**2);
                             if(d < minDist) { minDist = d; best = { x: gx, y: gy }; }
                         }
@@ -383,7 +268,7 @@
                 return best;
             }
 
-            getPieceCenter(type, gx, gy) { const b = this.getB(type); return { x: CONFIG.GAP + (gx + b.w/2) * (this.cSize + CONFIG.GAP), y: CONFIG.GAP + (gy + b.h/2) * (this.cSize + CONFIG.GAP) }; }
+            getPieceCenter(type, gx, gy) { const b = this.getB(type); return { x: this.gridOffset.x + CONFIG.GAP + (gx + b.w/2) * (this.cSize + CONFIG.GAP), y: this.gridOffset.y + CONFIG.GAP + (gy + b.h/2) * (this.cSize + CONFIG.GAP) }; }
 
             validate(type, gx, gy) {
                 const s = CONFIG.SHAPES.UTILITY[type] || CONFIG.SHAPES.STANDARD[type] || CONFIG.SHAPES.ELITE[type];
@@ -421,14 +306,29 @@
             }
 
             checkLoss() {
+                if (this.isBoardEmpty()) return;
                 const tray = this.queue.filter(p => p !== null);
                 const possible = tray.some(type => { for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) if(this.validate(type, x, y)) return true; } return false; });
                 if(!possible && tray.length > 0) { 
-                    SFX.playExplode();
                     this.visualEntities.forEach(e => { if(!e.isExploded) e.explode(); });
                     document.getElementById('final-score').textContent = this.score; 
                     setTimeout(() => { document.getElementById('overlay').style.display = 'flex'; }, 1500);
                 }
+            }
+
+            isBoardEmpty() { return this.logicalGrid.every(row => row.every(cell => !cell)); }
+
+            nextTheme() {
+                this.themeIndex = (this.themeIndex + 1) % THEMES.length;
+                const theme = THEMES[this.themeIndex];
+                document.documentElement.style.setProperty('--bg', theme.bg);
+                document.documentElement.style.setProperty('--white', theme.block);
+                document.documentElement.style.setProperty('--fever', theme.accent);
+                const bonus = 1000 * (this.themeIndex + 1);
+                this.score += bonus;
+                this.popups.push(new ScorePopup(this.gridOffset.x + this.renderSize/2, this.gridOffset.y + this.renderSize/2, bonus, {w: this.canvas.width, h: this.canvas.height}, 0, -500, true));
+                this.flares.push(new VisualFlare(this.gridOffset.x + this.renderSize/2, this.gridOffset.y + this.renderSize/2, 5, theme.accent));
+                this.refill();
             }
 
             update(dt) {
@@ -458,7 +358,6 @@
             }
 
             handleBadgeExplode(p) {
-                SFX.playPop(p.val >= 100);
                 const power = p.isRainbow ? 4 : (p.val > 100 ? 2.5 : 1);
                 this.shake = 5 * power;
                 const count = p.isRainbow ? 150 : (p.val > 100 ? 80 : 30);
@@ -470,18 +369,17 @@
                     for (let i = 0; i < 2; i++) {
                         const angle = -Math.PI/2 + (Math.random() - 0.5) * 1.5;
                         const force = 400 + Math.random() * 200;
-                        this.popups.push(new ScorePopup(p.x, p.y - 10, newVal, {w: this.renderSize, h: this.renderSize}, Math.cos(angle) * force, Math.sin(angle) * force, this.isFever));
+                        this.popups.push(new ScorePopup(p.x, p.y - 10, newVal, {w: this.canvas.width / (window.devicePixelRatio || 2), h: this.canvas.height / (window.devicePixelRatio || 2)}, Math.cos(angle) * force, Math.sin(angle) * force, this.isFever));
                     }
                 }
             }
 
             executePlace(cmd) {
-                SFX.playPlace();
                 const shape = CONFIG.SHAPES.UTILITY[cmd.shape] || CONFIG.SHAPES.STANDARD[cmd.shape] || CONFIG.SHAPES.ELITE[cmd.shape];
                 const points = shape.length;
-                shape.forEach(([px, py]) => { this.logicalGrid[cmd.gy+py][cmd.gx+px] = true; const tx = CONFIG.GAP + (cmd.gx+px) * (this.cSize + CONFIG.GAP) + this.cSize/2; const ty = CONFIG.GAP + (cmd.gy+py) * (this.cSize + CONFIG.GAP) + this.cSize/2; this.visualEntities.push(new VisualTile(cmd.startX, cmd.startY, tx, ty, this.cSize, {w: this.renderSize, h: this.renderSize})); });
+                shape.forEach(([px, py]) => { this.logicalGrid[cmd.gy+py][cmd.gx+px] = true; const tx = this.gridOffset.x + CONFIG.GAP + (cmd.gx+px) * (this.cSize + CONFIG.GAP) + this.cSize/2; const ty = this.gridOffset.y + CONFIG.GAP + (cmd.gy+py) * (this.cSize + CONFIG.GAP) + this.cSize/2; this.visualEntities.push(new VisualTile(cmd.startX, cmd.startY, tx, ty, this.cSize, {w: this.canvas.width / (window.devicePixelRatio || 2), h: this.canvas.height / (window.devicePixelRatio || 2)})); });
                 const center = this.getPieceCenter(cmd.shape, cmd.gx, cmd.gy);
-                const p = new ScorePopup(center.x, center.y, points, {w: this.renderSize, h: this.renderSize}, null, null, this.isFever);
+                const p = new ScorePopup(center.x, center.y, points, {w: this.canvas.width / (window.devicePixelRatio || 2), h: this.canvas.height / (window.devicePixelRatio || 2)}, null, null, this.isFever);
                 this.popups.push(p);
                 this.flares.push(new VisualFlare(center.x, center.y, 1, p.color));
                 this.queue[cmd.id] = null; this.score += points; this.checkLines();
@@ -497,34 +395,25 @@
                 c.forEach(x => { for(let y=0; y<CONFIG.GRID; y++) { if(this.logicalGrid[y][x]) { this.killVisual(x, y); this.logicalGrid[y][x] = null; } }});
                 if(r.length + c.length > 0) {
                     const combo = r.length + c.length;
-                    SFX.playClear(combo);
                     const clearPoints = Math.pow(combo, 2) * 100; this.score += clearPoints;
                     this.fever = Math.min(100, this.fever + combo * 15);
-                    if (this.fever >= 100 && !this.isFever) { SFX.playFever(); this.isFever = true; this.feverTimer = 10; document.getElementById('app').classList.add('fever'); }
-                    this.popups.push(new ScorePopup(this.renderSize/2, this.renderSize/2, clearPoints, {w: this.renderSize, h: this.renderSize}, null, null, this.isFever));
-                    this.flares.push(new VisualFlare(this.renderSize/2, this.renderSize/2, 2.5, '#fff'));
+                    if (this.fever >= 100 && !this.isFever) { this.isFever = true; this.feverTimer = 10; document.getElementById('app').classList.add('fever'); }
+                    this.popups.push(new ScorePopup(this.gridOffset.x + this.renderSize/2, this.gridOffset.y + this.renderSize/2, clearPoints, {w: this.canvas.width / (window.devicePixelRatio || 2), h: this.canvas.height / (window.devicePixelRatio || 2)}, null, null, this.isFever));
+                    this.flares.push(new VisualFlare(this.gridOffset.x + this.renderSize/2, this.gridOffset.y + this.renderSize/2, 2.5, '#fff'));
+                    if (this.isBoardEmpty()) this.nextTheme();
                     this.updateUI();
-
-                    // Check for Full Board Clear
-                    const isBoardEmpty = this.logicalGrid.every(row => row.every(cell => cell === null));
-                    if (isBoardEmpty) {
-                        SFX.playPerfect();
-                        THEMES.next();
-                        this.popups.push(new ScorePopup(this.renderSize/2, this.renderSize/2 - 100, 1000, {w: this.renderSize, h: this.renderSize}, 0, -600, true));
-                        this.flares.push(new VisualFlare(this.renderSize/2, this.renderSize/2, 5, '#fff'));
-                        for(let i=0; i<3; i++) this.updateTrayUI(i);
-                    }
                 }
             }
 
             killVisual(gx, gy) {
-                const tx = CONFIG.GAP + gx * (this.cSize + CONFIG.GAP) + this.cSize/2;
-                const ty = CONFIG.GAP + gy * (this.cSize + CONFIG.GAP) + this.cSize/2;
+                const tx = this.gridOffset.x + CONFIG.GAP + gx * (this.cSize + CONFIG.GAP) + this.cSize/2;
+                const ty = this.gridOffset.y + CONFIG.GAP + gy * (this.cSize + CONFIG.GAP) + this.cSize/2;
+                const shardColor = getComputedStyle(document.documentElement).getPropertyValue('--white').trim();
                 this.visualEntities.forEach(e => {
                     if(!e.isExploded && Math.abs(e.tx - tx) < 1 && Math.abs(e.ty - ty) < 1) {
                         e.isDead = true;
                         const shardSize = this.cSize / 3;
-                        for (let sy = 0; sy < 3; sy++) { for (let sx = 0; sx < 3; sx++) { const shardX = (tx - this.cSize/2) + sx * shardSize + shardSize/2; const shardY = (ty - this.cSize/2) + sy * shardSize + shardSize/2; this.shards.push(new Shard(shardX, shardY, shardSize, {w: this.renderSize, h: this.renderSize})); } }
+                        for (let sy = 0; sy < 3; sy++) { for (let sx = 0; sx < 3; sx++) { const shardX = (tx - this.cSize/2) + sx * shardSize + shardSize/2; const shardY = (ty - this.cSize/2) + sy * shardSize + shardSize/2; this.shards.push(new Shard(shardX, shardY, shardSize, {w: this.canvas.width / (window.devicePixelRatio || 2), h: this.canvas.height / (window.devicePixelRatio || 2)}, shardColor)); } }
                     }
                 });
             }
@@ -533,9 +422,9 @@
             gameLoop(time) { const delta = (time - this.lastTime) / 1000; this.lastTime = time; this.accumulator += Math.min(delta, 0.25); while(this.accumulator >= DT) { this.update(DT); this.accumulator -= DT; } this.render(); requestAnimationFrame(this.gameLoop.bind(this)); }
 
             render() {
-                const ctx = this.ctx; ctx.clearRect(0, 0, this.renderSize, this.renderSize);
+                const ctx = this.ctx; ctx.clearRect(0, 0, this.canvas.width / (window.devicePixelRatio || 2), this.canvas.height / (window.devicePixelRatio || 2));
                 ctx.save(); if(this.shake > 0) ctx.translate((Math.random()-0.5)*this.shake, (Math.random()-0.5)*this.shake);
-                for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) { ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.beginPath(); ctx.roundRect(CONFIG.GAP + x*(this.cSize+CONFIG.GAP), CONFIG.GAP + y*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); } }
+                for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) { ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.beginPath(); ctx.roundRect(this.gridOffset.x + CONFIG.GAP + x*(this.cSize+CONFIG.GAP), this.gridOffset.y + CONFIG.GAP + y*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); } }
                 this.visualEntities.forEach(e => e.draw(ctx));
                 this.shards.forEach(s => s.draw(ctx));
                 this.shockwaves.forEach(s => s.draw(ctx));
@@ -543,13 +432,13 @@
                 if(this.drag) {
                     this.drag.tx = LERP(this.drag.tx, this.mouse.x, 0.2); this.drag.ty = LERP(this.drag.ty, this.mouse.y, 0.2);
                     const r = this.canvas.getBoundingClientRect(); let cx = this.drag.tx - r.left, cy = this.drag.ty - r.top - this.liftOffset;
-                    const fit = this.findBestFit(this.drag.type, cx, cy);
+                    const fit = this.findBestFit(cx, cy);
                     if(fit) {
                         const center = this.getPieceCenter(this.drag.type, fit.x, fit.y);
                         cx = LERP(cx, center.x, 0.6); cy = LERP(cy, center.y, 0.6);
                         ctx.fillStyle = 'rgba(255,255,255,0.12)';
                         const s = CONFIG.SHAPES.UTILITY[this.drag.type] || CONFIG.SHAPES.STANDARD[this.drag.type] || CONFIG.SHAPES.ELITE[this.drag.type];
-                        s.forEach(([px, py]) => { ctx.beginPath(); ctx.roundRect(CONFIG.GAP + (fit.x+px)*(this.cSize+CONFIG.GAP), CONFIG.GAP + (fit.y+py)*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); });
+                        s.forEach(([px, py]) => { ctx.beginPath(); ctx.roundRect(this.gridOffset.x + CONFIG.GAP + (fit.x+px)*(this.cSize+CONFIG.GAP), this.gridOffset.y + CONFIG.GAP + (fit.y+py)*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); });
                     }
                     this.drawPiece(ctx, this.drag.type, cx, cy, this.cSize * 1.1, 1);
                 }
@@ -560,27 +449,8 @@
                 ctx.save(); ctx.globalAlpha = alpha;
                 const s = CONFIG.SHAPES.UTILITY[type] || CONFIG.SHAPES.STANDARD[type] || CONFIG.SHAPES.ELITE[type];
                 const b = this.getB(type); ctx.translate(x - (b.w)*size/2, y - (b.h)*size/2);
-                
-                s.forEach(([px, py]) => {
-                    const tx = px * size + size / 2;
-                    const ty = py * size + size / 2;
-                    
-                    if (THEMES.current.isGradient || THEMES.current.isAnimated) {
-                        ctx.fillStyle = THEMES.current.getFill(ctx, tx, ty, size);
-                    } else {
-                        ctx.fillStyle = THEMES.current.fill;
-                    }
-                    
-                    ctx.beginPath();
-                    ctx.roundRect(px*size + 1, py*size + 1, size - 2, size - 2, 10);
-                    ctx.fill();
-                    
-                    if (THEMES.current.stroke) {
-                        ctx.strokeStyle = THEMES.current.stroke;
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                    }
-                });
+                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--white').trim();
+                s.forEach(([px, py]) => { ctx.beginPath(); ctx.roundRect(px*size + 1, py*size + 1, size - 2, size - 2, 10); ctx.fill(); });
                 ctx.restore();
             }
 
