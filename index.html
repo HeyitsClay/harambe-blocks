@@ -548,10 +548,16 @@
                     this.drag.tx = LERP(this.drag.tx, this.mouse.x, 0.2); this.drag.ty = LERP(this.drag.ty, this.mouse.y, 0.2);
                     const r = this.canvas.getBoundingClientRect(); let cx = this.drag.tx - r.left, cy = this.drag.ty - r.top - this.liftOffset;
                     const fit = this.findBestFit(cx, cy); if(fit) {
-                        const center = this.getPieceCenter(this.drag.type, fit.x, fit.y); cx = LERP(center.x, center.x, 0.6); cy = LERP(center.y, center.y, 0.6);
-                        ctx.fillStyle = 'rgba(255,255,255,0.12)'; ALL_SHAPES[this.drag.type].forEach(([px, py]) => { ctx.beginPath(); ctx.roundRect(this.gridOffset.x + CONFIG.GAP + (fit.x+px)*(this.cSize+CONFIG.GAP), this.gridOffset.y + CONFIG.GAP + (fit.y+py)*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); });
-                    } this.drawPiece(ctx, this.drag.type, cx, cy, this.cSize * 1.1, 1);
-                }
+                        if(fit) {
+                            const center = this.getPieceCenter(this.drag.type, fit.x, fit.y); cx = LERP(center.x, center.x, 0.6); cy = LERP(center.y, center.y, 0.6);
+                            ctx.fillStyle = 'rgba(255,255,255,0.15)'; 
+                            ALL_SHAPES[this.drag.type].forEach(([px, py]) => { 
+                                const xx = this.gridOffset.x + CONFIG.GAP + (fit.x+px)*(this.cSize+CONFIG.GAP);
+                                const yy = this.gridOffset.y + CONFIG.GAP + (fit.y+py)*(this.cSize+CONFIG.GAP);
+                                ctx.beginPath(); ctx.roundRect(xx + 1, yy + 1, this.cSize - 2, this.cSize - 2, 10); ctx.fill(); 
+                            });
+                        } 
+                        this.drawPiece(ctx, this.drag.type, cx, cy, this.cSize * 1.1, 1);
                 this.popups.forEach(p => p.draw(ctx)); this.confetti.forEach(c => c.draw(ctx)); ctx.restore();
             }
 
