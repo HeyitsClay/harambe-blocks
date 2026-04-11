@@ -98,30 +98,29 @@
                     osc.start(now); osc.stop(now + 0.25);
                 } else if (type === 'combo') {
                     const m = params.multiplier || 2;
-                    // Multi-layered "Sick" Tech Blast
-                    const base = 100 + (m * 20);
+                    // Satisfying Magical Chime/FM Sweep
+                    const base = 220 * Math.pow(1.059, Math.min(24, (m - 2) * 3));
                     
-                    // Sub
-                    const o1 = this.ctx.createOscillator(); const g1 = this.ctx.createGain();
-                    o1.type = 'sine'; o1.frequency.setValueAtTime(base, now); o1.frequency.exponentialRampToValueAtTime(40, now + 0.4);
-                    g1.gain.setValueAtTime(0.5, now); g1.gain.linearRampToValueAtTime(0, now + 0.4);
-                    o1.connect(g1); g1.connect(this.master); o1.start(now); o1.stop(now + 0.4);
-
-                    // Saw Arp
-                    const o2 = this.ctx.createOscillator(); const g2 = this.ctx.createGain();
-                    o2.type = 'sawtooth'; 
-                    [1, 1.5, 2, 2.5].forEach((f, i) => { o2.frequency.setValueAtTime(base * f, now + i * 0.05); });
-                    g2.gain.setValueAtTime(0.15, now); g2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                    o2.connect(g2); g2.connect(this.master); o2.start(now); o2.stop(now + 0.3);
-
-                    // Noise burst
-                    const bSize = this.ctx.sampleRate * 0.1;
-                    const buffer = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
-                    const data = buffer.getChannelData(0);
-                    for (let i = 0; i < bSize; i++) data[i] = Math.random() * 2 - 1;
-                    const n = this.ctx.createBufferSource(); n.buffer = buffer;
-                    const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.2, now); ng.gain.linearRampToValueAtTime(0, now + 0.1);
-                    n.connect(ng); ng.connect(this.master); n.start(now);
+                    for(let i=0; i<3; i++) {
+                        const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
+                        o.type = 'sine';
+                        const harmonic = [1, 2.01, 3.02][i];
+                        o.frequency.setValueAtTime(base * harmonic, now);
+                        o.frequency.exponentialRampToValueAtTime(base * harmonic * 1.5, now + 0.4);
+                        g.gain.setValueAtTime(0.2 / (i+1), now);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                        o.connect(g); g.connect(this.master);
+                        o.start(now); o.stop(now + 0.5);
+                    }
+                    
+                    const sparkle = this.ctx.createOscillator(); const sGain = this.ctx.createGain();
+                    sparkle.type = 'triangle';
+                    sparkle.frequency.setValueAtTime(base * 8, now);
+                    sparkle.frequency.exponentialRampToValueAtTime(base * 16, now + 0.3);
+                    sGain.gain.setValueAtTime(0.05, now);
+                    sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    sparkle.connect(sGain); sGain.connect(this.master);
+                    sparkle.start(now); sparkle.stop(now + 0.3);
                 } else if (type === 'pop') {
                     const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
                     osc.connect(gain); gain.connect(this.master);
@@ -217,8 +216,17 @@
                 } else if (typeof this.val === 'number' && this.val >= 100) { 
                     ctx.shadowColor = this.color; ctx.shadowBlur = 15; 
                 }
-                ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill(); 
-                ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
+                ctx.fillStyle = fill; ctx.beginPath();
+                if (this.isCombo) {
+                    const spikes = 5; const outer = this.radius * 1.2; const inner = this.radius * 0.6;
+                    let rot = Math.PI / 2 * 3; let step = Math.PI / spikes;
+                    ctx.moveTo(0, -outer);
+                    for (let i = 0; i < spikes; i++) {
+                        ctx.lineTo(Math.cos(rot) * outer, Math.sin(rot) * outer); rot += step;
+                        ctx.lineTo(Math.cos(rot) * inner, Math.sin(rot) * inner); rot += step;
+                    } ctx.closePath();
+                } else { ctx.arc(0, 0, this.radius, 0, Math.PI*2); }
+                ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
                 ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * (this.isCombo ? 1.1 : 0.85))}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 if (typeof this.val === 'number') ctx.fillText(this.val.toLocaleString(), 0, 0);
                 else ctx.fillText(this.label, 0, 0);
@@ -469,7 +477,7 @@
             }
 
             handleBadgeExplode(p) {
-                if (p.isCombo) SFX.play('combo', { multiplier: 2 }); else SFX.play('pop'); 
+                if (p.isCombo) SFX.play('pop'); else SFX.play('pop'); 
                 let power = typeof p.val === 'number' && p.val >= 400 ? 4 : (typeof p.val === 'number' && p.val >= 100 ? 2.5 : 1);
                 if (p.isCombo) power = 5;
                 this.shake = 5 * power; 
