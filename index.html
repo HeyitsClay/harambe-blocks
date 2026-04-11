@@ -197,7 +197,12 @@
                 this.radius = typeof val === 'number' ? Math.max(18, Math.min(55, 14 + (val / 18))) : 40;
                 this.pulse = 0; this.bounciness = 0.7; this.spawnScale = 0; this.targetScale = 1.0;
                 this.isCombo = label && label.includes('X');
-                if (typeof val === 'number') { if (val < 100) this.color = COLORS.BRONZE; else if (val < 400) this.color = COLORS.SILVER; else this.color = COLORS.GOLD; } else { this.color = '#ffd700'; }
+                if (typeof val === 'number') { 
+                    if (val < 10) this.color = COLORS.BRONZE; 
+                    else if (val < 100) this.color = COLORS.SILVER; 
+                    else if (val < 125) this.color = COLORS.GOLD;
+                    else this.color = '#ffd700'; 
+                } else { this.color = '#ffd700'; }
             }
             update(dt, onHit) {
                 this.vy += CONFIG.GRAVITY * dt; this.x += this.vx * dt; this.y += this.vy * dt;
@@ -209,9 +214,10 @@
             }
             draw(ctx) {
                 ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
-                const s = this.spawnScale * (this.isCombo || (typeof this.val === 'number' && this.val >= 100) ? (1 + Math.sin(this.pulse) * 0.1) : 1); ctx.scale(s, s);
+                const isRainbowTier = this.isCombo || (typeof this.val === 'number' && this.val >= 125);
+                const s = this.spawnScale * (isRainbowTier || (typeof this.val === 'number' && this.val >= 100) ? (1 + Math.sin(this.pulse) * 0.1) : 1); ctx.scale(s, s);
                 let fill = this.color;
-                if (this.isCombo || (typeof this.val === 'number' && this.val >= 400)) { 
+                if (isRainbowTier) { 
                     fill = `hsl(${(this.pulse * 100) % 360}, 100%, 60%)`; ctx.shadowColor = fill; ctx.shadowBlur = 25; 
                 } else if (typeof this.val === 'number' && this.val >= 100) { 
                     ctx.shadowColor = this.color; ctx.shadowBlur = 15; 
