@@ -423,22 +423,21 @@
 
             async submitScore(name, score) {
                 try { 
-                    await fetch(`http://www.dreamlo.com/lb/${LB_CONFIG.PRIVATE}/add/${encodeURIComponent(name)}/${score}`);
+                    await fetch(`https://www.dreamlo.com/lb/${LB_CONFIG.PRIVATE}/add/${encodeURIComponent(name)}/${score}`);
                     location.reload(); 
                 } catch (e) { location.reload(); }
             }
 
             async fetchLeaderboard(limit = 10) {
                 try {
-                    // Use http for free accounts and correct skip/take structure
-                    const res = await fetch(`http://www.dreamlo.com/lb/${LB_CONFIG.PUBLIC}/json/0/${limit}`);
+                    const res = await fetch(`https://www.dreamlo.com/lb/${LB_CONFIG.PUBLIC}/json/0/${limit}`);
                     const data = await res.json();
                     
                     const previewEl = document.getElementById('lb-preview-content');
                     const gameoverEl = document.getElementById('lb-content');
                     const fullEl = document.getElementById('full-lb-content');
 
-                    if (!data || !data.dreamlo || !data.dreamlo.leaderboard || !data.dreamlo.leaderboard.entry) {
+                    if (!data || !data.dreamlo || !data.dreamlo.leaderboard) {
                         const msg = 'No scores yet!';
                         if (limit === 3) previewEl.innerHTML = 'Be the first!';
                         else if (limit === 10) gameoverEl.innerHTML = msg;
@@ -447,6 +446,13 @@
                     }
 
                     let list = data.dreamlo.leaderboard.entry;
+                    if (!list) {
+                        const msg = 'No scores yet!';
+                        if (limit === 3) previewEl.innerHTML = 'Be the first!';
+                        else if (limit === 10) gameoverEl.innerHTML = msg;
+                        else if (limit === 100) fullEl.innerHTML = msg;
+                        return;
+                    }
                     if (!Array.isArray(list)) list = [list];
                     
                     let html = '';
@@ -458,6 +464,7 @@
                     else if (limit === 10) gameoverEl.innerHTML = html;
                     else if (limit === 100) fullEl.innerHTML = html;
                 } catch (e) {
+                    console.error("Leaderboard error:", e);
                     if (limit === 3) document.getElementById('lb-preview-content').innerHTML = 'Offline';
                 }
             }
