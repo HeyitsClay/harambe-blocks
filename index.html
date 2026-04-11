@@ -416,7 +416,7 @@
                 const bounds = {w: this.canvas.width / (window.devicePixelRatio || 2), h: this.canvas.height / (window.devicePixelRatio || 2)};
                 const center = this.getPieceCenter(cmd.shape, cmd.gx, cmd.gy);
 
-                this.popups.push(new ScorePopup(center.x, center.y, piecePoints, bounds));
+                this.popups.push(new ScorePopup(center.x, center.y, piecePoints * multiplier, bounds));
                 
                 if (lineCount > 0) {
                     if (multiplier > 1) {
@@ -424,15 +424,14 @@
                         shape.forEach(([px, py]) => {
                             const tx = this.gridOffset.x + CONFIG.GAP + (cmd.gx+px) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
                             const ty = this.gridOffset.y + CONFIG.GAP + (cmd.gy+py) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
-                            for(let i=0; i<1; i++) { // Reduced from 3 to 1 per tile
+                            for(let i=0; i<1; i++) {
                                 const vx = (Math.random()-0.5)*600; const vy = -400-Math.random()*400;
                                 const p = new ScorePopup(tx, ty, null, bounds, `${multiplier}X`, vx, vy);
-                                p.radius = 45; // Bigger radius
-                                this.popups.push(p);
+                                p.radius = 45; this.popups.push(p);
                             }
                         });
                     }
-                    setTimeout(() => { this.popups.push(new ScorePopup(center.x, center.y, lineBonus, bounds)); }, 250);
+                    setTimeout(() => { this.popups.push(new ScorePopup(center.x, center.y, lineBonus * multiplier, bounds)); }, 250);
                 }
 
                 r.forEach(y => { for(let x=0; x<CONFIG.GRID; x++) { this.logicalGrid[y][x] = null; this.killVisual(x, y); }});
