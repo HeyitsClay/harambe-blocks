@@ -408,7 +408,9 @@
                     this.flares.push(new VisualFlare(this.gridOffset.x + this.renderSize/2, this.gridOffset.y + this.renderSize/2, 2.5, '#fff'));
                 }
                 
-                this.queue[cmd.id] = null; if(this.queue.every(q => !q)) this.refill(); else this.checkLoss();
+                this.queue[cmd.id] = null; 
+                this.updateTrayUI(cmd.id);
+                if(this.queue.every(q => !q)) this.refill(); else this.checkLoss();
                 this.updateUI();
             }
 
