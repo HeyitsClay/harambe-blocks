@@ -76,63 +76,61 @@
             play(type, params = {}) {
                 this.init(); this.resume();
                 const now = this.ctx.currentTime;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.connect(gain); gain.connect(this.master);
+                
                 if (type === 'pickup') {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.connect(gain); gain.connect(this.master);
                     osc.type = 'triangle'; osc.frequency.setValueAtTime(440, now); osc.frequency.exponentialRampToValueAtTime(880, now + 0.05);
                     gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
                     osc.start(now); osc.stop(now + 0.1);
                 } else if (type === 'place') {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.connect(gain); gain.connect(this.master);
                     osc.type = 'sine'; osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
                     gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
                     osc.start(now); osc.stop(now + 0.15);
                 } else if (type === 'clear') {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.connect(gain); gain.connect(this.master);
                     const lines = params.lines || 1;
                     osc.type = 'square'; osc.frequency.setValueAtTime(261.63 * Math.pow(1.2, lines), now); osc.frequency.exponentialRampToValueAtTime(523.25 * Math.pow(1.2, lines), now + 0.2);
                     gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
                     osc.start(now); osc.stop(now + 0.25);
                 } else if (type === 'combo') {
                     const m = params.multiplier || 2;
-                    const baseFreq = 110 * Math.pow(1.059, Math.min(12, (m - 2) * 2));
+                    // Multi-layered "Sick" Tech Blast
+                    const base = 100 + (m * 20);
                     
-                    // Layer 1: The Punchy Hit
-                    const o1 = this.ctx.createOscillator();
-                    const g1 = this.ctx.createGain();
-                    o1.type = 'sine';
-                    o1.frequency.setValueAtTime(baseFreq * 4, now);
-                    o1.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.1);
-                    g1.gain.setValueAtTime(0.3, now);
-                    g1.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                    o1.connect(g1); g1.connect(this.master);
-                    o1.start(now); o1.stop(now + 0.3);
+                    // Sub
+                    const o1 = this.ctx.createOscillator(); const g1 = this.ctx.createGain();
+                    o1.type = 'sine'; o1.frequency.setValueAtTime(base, now); o1.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+                    g1.gain.setValueAtTime(0.5, now); g1.gain.linearRampToValueAtTime(0, now + 0.4);
+                    o1.connect(g1); g1.connect(this.master); o1.start(now); o1.stop(now + 0.4);
 
-                    // Layer 2: Rapid Arpeggio
-                    const o2 = this.ctx.createOscillator();
-                    const g2 = this.ctx.createGain();
-                    o2.type = 'sawtooth';
-                    const scale = [1, 1.25, 1.5, 1.875, 2];
-                    scale.forEach((n, i) => { o2.frequency.setValueAtTime(baseFreq * n, now + i * 0.04); });
-                    g2.gain.setValueAtTime(0.12, now);
-                    g2.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                    o2.connect(g2); g2.connect(this.master);
-                    o2.start(now); o2.stop(now + 0.4);
+                    // Saw Arp
+                    const o2 = this.ctx.createOscillator(); const g2 = this.ctx.createGain();
+                    o2.type = 'sawtooth'; 
+                    [1, 1.5, 2, 2.5].forEach((f, i) => { o2.frequency.setValueAtTime(base * f, now + i * 0.05); });
+                    g2.gain.setValueAtTime(0.15, now); g2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    o2.connect(g2); g2.connect(this.master); o2.start(now); o2.stop(now + 0.3);
 
-                    // Layer 3: High Sparkle
-                    const o3 = this.ctx.createOscillator();
-                    const g3 = this.ctx.createGain();
-                    o3.type = 'triangle';
-                    o3.frequency.setValueAtTime(baseFreq * 8, now);
-                    o3.frequency.exponentialRampToValueAtTime(baseFreq * 16, now + 0.2);
-                    g3.gain.setValueAtTime(0.05, now);
-                    g3.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-                    o3.connect(g3); g3.connect(this.master);
-                    o3.start(now); o3.stop(now + 0.2);
+                    // Noise burst
+                    const bSize = this.ctx.sampleRate * 0.1;
+                    const buffer = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bSize; i++) data[i] = Math.random() * 2 - 1;
+                    const n = this.ctx.createBufferSource(); n.buffer = buffer;
+                    const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.2, now); ng.gain.linearRampToValueAtTime(0, now + 0.1);
+                    n.connect(ng); ng.connect(this.master); n.start(now);
                 } else if (type === 'pop') {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.connect(gain); gain.connect(this.master);
                     osc.type = 'sine'; osc.frequency.setValueAtTime(600 + Math.random() * 400, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
                     gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
                     osc.start(now); osc.stop(now + 0.05);
                 } else if (type === 'gameOver') {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.connect(gain); gain.connect(this.master);
                     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
                     gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 1.0);
                     osc.start(now); osc.stop(now + 1.0);
@@ -197,7 +195,7 @@
                 this.x = x; this.y = y; this.val = val; this.label = label; this.bounds = bounds; this.isDead = false;
                 this.vx = vx !== null ? vx : (Math.random() - 0.5) * 200; this.vy = vy !== null ? vy : -450 - Math.random() * 200; 
                 this.rotation = 0; this.rotV = (Math.random() - 0.5) * 8;
-                this.radius = typeof val === 'number' ? Math.max(18, Math.min(55, 14 + (val / 18))) : 45;
+                this.radius = typeof val === 'number' ? Math.max(18, Math.min(55, 14 + (val / 18))) : 40;
                 this.pulse = 0; this.bounciness = 0.7; this.spawnScale = 0; this.targetScale = 1.0;
                 this.isCombo = label && label.includes('X');
                 if (typeof val === 'number') { if (val < 100) this.color = COLORS.BRONZE; else if (val < 400) this.color = COLORS.SILVER; else this.color = COLORS.GOLD; } else { this.color = '#ffd700'; }
@@ -219,15 +217,11 @@
                 } else if (typeof this.val === 'number' && this.val >= 100) { 
                     ctx.shadowColor = this.color; ctx.shadowBlur = 15; 
                 }
-                ctx.fillStyle = fill; ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI*2);
-                ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
+                ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2); ctx.fill(); 
+                ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
                 ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * (this.isCombo ? 1.1 : 0.85))}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                if (typeof this.val === 'number') {
-                    ctx.fillText(this.val.toLocaleString(), 0, 0);
-                } else {
-                    ctx.fillText(this.label, 0, 0);
-                }
+                if (typeof this.val === 'number') ctx.fillText(this.val.toLocaleString(), 0, 0);
+                else ctx.fillText(this.label, 0, 0);
                 ctx.restore();
             }
         }
@@ -403,28 +397,33 @@
                 for(let x=0; x<CONFIG.GRID; x++) { let f=true; for(let y=0; y<CONFIG.GRID; y++) if(!this.logicalGrid[y][x]) f=false; if(f) c.push(x); }
                 const lineCount = r.length + c.length;
                 
-                let lineBonus = 0;
-                if (lineCount > 0) {
-                    if (lineCount === 1) lineBonus = 50; else if (lineCount === 2) lineBonus = 75; else if (lineCount === 3) lineBonus = 125; else if (lineCount === 4) lineBonus = 175; else if (lineCount >= 5) lineBonus = 250;
-                    this.comboCount++;
-                } else { this.comboCount = 0; }
+                if (lineCount > 0) this.comboCount++;
+                else this.comboCount = 0;
                 
                 const multiplier = Math.max(1, this.comboCount);
-                const moveScore = (piecePoints + lineBonus) * multiplier; this.score += moveScore;
+                let lineBonus = 0;
+                if (lineCount === 1) lineBonus = 50; else if (lineCount === 2) lineBonus = 75; else if (lineCount === 3) lineBonus = 125; else if (lineCount === 4) lineBonus = 175; else if (lineCount >= 5) lineBonus = 250;
                 
-                const center = this.getPieceCenter(cmd.shape, cmd.gx, cmd.gy);
+                const moveScore = (piecePoints + lineBonus) * multiplier; this.score += moveScore;
                 const bounds = {w: this.canvas.width / (window.devicePixelRatio || 2), h: this.canvas.height / (window.devicePixelRatio || 2)};
+                const center = this.getPieceCenter(cmd.shape, cmd.gx, cmd.gy);
+
                 this.popups.push(new ScorePopup(center.x, center.y, piecePoints, bounds));
+                
                 if (lineCount > 0) {
-                    setTimeout(() => {
-                        this.popups.push(new ScorePopup(center.x, center.y, lineBonus, bounds));
-                        if (multiplier > 1) {
-                            setTimeout(() => { 
-                                SFX.play('combo');
-                                this.popups.push(new ScorePopup(center.x, center.y, null, bounds, `${multiplier}X`)); 
-                            }, 250);
-                        }
-                    }, 250);
+                    if (multiplier > 1) {
+                        SFX.play('combo', { multiplier });
+                        shape.forEach(([px, py]) => {
+                            const tx = this.gridOffset.x + CONFIG.GAP + (cmd.gx+px) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
+                            const ty = this.gridOffset.y + CONFIG.GAP + (cmd.gy+py) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
+                            for(let i=0; i<3; i++) {
+                                const vx = (Math.random()-0.5)*600; const vy = -400-Math.random()*400;
+                                const p = new ScorePopup(tx, ty, null, bounds, `${multiplier}X`, vx, vy);
+                                p.radius = 22; this.popups.push(p);
+                            }
+                        });
+                    }
+                    setTimeout(() => { this.popups.push(new ScorePopup(center.x, center.y, lineBonus, bounds)); }, 250);
                 }
 
                 r.forEach(y => { for(let x=0; x<CONFIG.GRID; x++) { this.logicalGrid[y][x] = null; this.killVisual(x, y); }});
@@ -434,9 +433,7 @@
                     SFX.play('clear', { lines: lineCount });
                     this.flares.push(new VisualFlare(this.gridOffset.x + this.renderSize/2, this.gridOffset.y + this.renderSize/2, 2.5, '#fff'));
                 }
-                
-                this.queue[cmd.id] = null; 
-                this.updateTrayUI(cmd.id);
+                this.queue[cmd.id] = null; this.updateTrayUI(cmd.id);
                 if(this.queue.every(q => !q)) this.refill(); else this.checkLoss();
                 this.updateUI();
             }
@@ -472,7 +469,7 @@
             }
 
             handleBadgeExplode(p) {
-                if (p.isCombo) SFX.play('combo'); else SFX.play('pop'); 
+                if (p.isCombo) SFX.play('combo', { multiplier: 2 }); else SFX.play('pop'); 
                 let power = typeof p.val === 'number' && p.val >= 400 ? 4 : (typeof p.val === 'number' && p.val >= 100 ? 2.5 : 1);
                 if (p.isCombo) power = 5;
                 this.shake = 5 * power; 
@@ -509,7 +506,7 @@
                     this.drag.tx = LERP(this.drag.tx, this.mouse.x, 0.2); this.drag.ty = LERP(this.drag.ty, this.mouse.y, 0.2);
                     const r = this.canvas.getBoundingClientRect(); let cx = this.drag.tx - r.left, cy = this.drag.ty - r.top - this.liftOffset;
                     const fit = this.findBestFit(cx, cy); if(fit) {
-                        const center = this.getPieceCenter(this.drag.type, fit.x, fit.y); cx = LERP(cx, center.x, 0.6); cy = LERP(cy, center.y, 0.6);
+                        const center = this.getPieceCenter(this.drag.type, fit.x, fit.y); cx = LERP(center.x, center.x, 0.6); cy = LERP(center.y, center.y, 0.6);
                         ctx.fillStyle = 'rgba(255,255,255,0.12)'; ALL_SHAPES[this.drag.type].forEach(([px, py]) => { ctx.beginPath(); ctx.roundRect(this.gridOffset.x + CONFIG.GAP + (fit.x+px)*(this.cSize+CONFIG.GAP), this.gridOffset.y + CONFIG.GAP + (fit.y+py)*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); });
                     } this.drawPiece(ctx, this.drag.type, cx, cy, this.cSize * 1.1, 1);
                 }
