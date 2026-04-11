@@ -427,21 +427,27 @@
 
             async fetchLeaderboard(limit = 10) {
                 try {
-                    const res = await fetch(`https://www.dreamlo.com/lb/${LB_CONFIG.PUBLIC}/json`);
+                    const res = await fetch(`https://www.dreamlo.com/lb/${LB_CONFIG.PUBLIC}/json/${limit}`);
                     const data = await res.json();
+                    if (!data || !data.dreamlo || !data.dreamlo.leaderboard) {
+                        if (limit === 3) document.getElementById('lb-preview-content').innerHTML = 'None';
+                        return;
+                    }
                     let list = data.dreamlo.leaderboard.entry;
                     if (!list) return;
                     if (!Array.isArray(list)) list = [list];
                     
                     let html = '';
-                    list.slice(0, limit).forEach((e, i) => {
+                    list.forEach((e, i) => {
                         html += `<div class="lb-row"><span class="lb-name">#${i+1} ${e.name}</span><span class="lb-score">${parseInt(e.score).toLocaleString()}</span></div>`;
                     });
 
-                    if (limit === 3) document.getElementById('lb-preview-content').innerHTML = html || 'None';
-                    else if (limit === 10) document.getElementById('lb-content').innerHTML = html || 'No scores yet!';
-                    else if (limit === 100) document.getElementById('full-lb-content').innerHTML = html || 'No scores yet!';
-                } catch (e) {}
+                    if (limit === 3) document.getElementById('lb-preview-content').innerHTML = html;
+                    else if (limit === 10) document.getElementById('lb-content').innerHTML = html;
+                    else if (limit === 100) document.getElementById('full-lb-content').innerHTML = html;
+                } catch (e) {
+                    if (limit === 3) document.getElementById('lb-preview-content').innerHTML = 'Offline';
+                }
             }
 
             executePlace(cmd) {
