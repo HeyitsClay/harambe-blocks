@@ -26,7 +26,6 @@
         .btn-retry:active { transform: scale(0.9); }
         #dev-auto { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 0.5rem; padding: 0.25rem 0.75rem; font-size: 0.6rem; font-weight: 900; color: #fff; opacity: 0.5; transition: opacity 0.2s; cursor: pointer; }
         #dev-auto.active { background: #22c55e; color: #000; opacity: 1; border-color: #22c55e; }
-        #combo-ui { font-weight: 900; font-size: 0.8rem; color: #ffd700; background: rgba(255,215,0,0.1); padding: 0.2rem 0.6rem; border-radius: 1rem; border: 1px solid rgba(255,215,0,0.3); display: none; margin-top: 0.5rem; }
     </style>
 </head>
 <body>
@@ -222,7 +221,8 @@
                     if (this.y >= this.bounds.h - this.size/2) { this.y = this.bounds.h - this.size/2; this.vx *= 0.8; this.vy = 0; this.rotV *= 0.8; }
                     if (this.alpha <= 0) this.isDead = true; return;
                 }
-                if (this.isMoving) { this.moveTime = Math.min(1, this.moveTime + dt * 6); const t = EASE_CUBIC_OUT(this.moveTime); this.x = LERP(this.startX, this.tx, t); this.y = LERP(this.startY, this.ty, t); if (this.moveTime >= 1) { this.isMoving = false; this.impact(); } }
+                if (this.isMoving) {
+                    this.moveTime = Math.min(1, this.moveTime + dt * 6); const t = EASE_CUBIC_OUT(this.moveTime); this.x = LERP(this.startX, this.tx, t); this.y = LERP(this.startY, this.ty, t); if (this.moveTime >= 1) { this.isMoving = false; this.impact(); } }
                 const ax = -this.tension * (this.scaleX - 1) - this.friction * this.velScaleX; const ay = -this.tension * (this.scaleY - 1) - this.friction * this.velScaleY;
                 this.velScaleX += ax * dt; this.velScaleY += ay * dt; this.scaleX += this.velScaleX * dt; this.scaleY += this.velScaleY * dt;
                 this.alpha = LERP(this.alpha, 1, 0.2);
@@ -306,11 +306,11 @@
             }
 
             updateTrayUI(i) {
-                const el = document.getElementById('s'+i); el.innerHTML = ''; if(!this.queue[i]) return;
+                const el = document.getElementById('s'+i); el.innerHTML = ''; el.style.opacity = '1'; if(!this.queue[i]) return;
                 const can = document.createElement('canvas'); can.width = 120; can.height = 120;
                 const ctx = can.getContext('2d'); const b = this.getB(this.queue[i]);
                 const scale = Math.max(b.w, b.h) > 3 ? 20 : 26;
-                this.drawPiece(ctx, this.queue[i], 60, 60, scale, 1); el.appendChild(can); el.style.opacity = '1';
+                this.drawPiece(ctx, this.queue[i], 60, 60, scale, 1); el.appendChild(can);
             }
 
             onStart(e) { if (this.isAuto) return; const el = e.target.closest('.slot'); if(el && this.queue[el.dataset.id]) { SFX.play('pickup'); this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.drag = { type: this.queue[el.dataset.id], id: el.dataset.id, tx: e.clientX, ty: e.clientY }; this.liftOffset = 0; el.style.opacity = '0'; } }
@@ -429,8 +429,6 @@
             updateUI() {
                 document.getElementById('ui-score').textContent = this.score.toLocaleString(); if(this.score > this.best) { this.best = this.score; localStorage.setItem('harambe_blocks_best_v2', this.best); }
                 document.getElementById('ui-best').textContent = parseInt(this.best).toLocaleString();
-                const comboEl = document.getElementById('combo-ui');
-                if (this.comboCount > 0) { comboEl.style.display = 'inline-block'; comboEl.textContent = `${this.comboCount}X COMBO`; } else { comboEl.style.display = 'none'; }
             }
             gameLoop(time) { const delta = (time - this.lastTime) / 1000; this.lastTime = time; this.accumulator += Math.min(delta, 0.25); while(this.accumulator >= DT) { this.update(DT); this.accumulator -= DT; } this.render(); requestAnimationFrame(this.gameLoop.bind(this)); }
 
