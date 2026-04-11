@@ -227,7 +227,7 @@
                     } ctx.closePath();
                 } else { ctx.arc(0, 0, this.radius, 0, Math.PI*2); }
                 ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
-                ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * (this.isCombo ? 1.1 : 0.85))}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * (this.isCombo ? 0.75 : 0.85))}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 if (typeof this.val === 'number') ctx.fillText(this.val.toLocaleString(), 0, 0);
                 else ctx.fillText(this.label, 0, 0);
                 ctx.restore();
