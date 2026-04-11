@@ -94,6 +94,15 @@
                     osc.type = 'square'; osc.frequency.setValueAtTime(261.63 * Math.pow(1.2, lines), now); osc.frequency.exponentialRampToValueAtTime(523.25 * Math.pow(1.2, lines), now + 0.2);
                     gain.gain.setValueAtTime(0.05, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
                     osc.start(now); osc.stop(now + 0.25);
+                } else if (type === 'combo') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(110, now);
+                    osc.frequency.exponentialRampToValueAtTime(440, now + 0.1);
+                    osc.frequency.exponentialRampToValueAtTime(220, now + 0.2);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
                 } else if (type === 'pop') {
                     osc.type = 'sine'; osc.frequency.setValueAtTime(600 + Math.random() * 400, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
                     gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
@@ -186,10 +195,15 @@
                     ctx.shadowColor = this.color; ctx.shadowBlur = 15; 
                 }
                 ctx.fillStyle = fill; ctx.beginPath();
-                if (this.label) { ctx.arc(0, 0, this.radius, 0, Math.PI*2); } else { ctx.arc(0, 0, this.radius, 0, Math.PI*2); }
+                ctx.arc(0, 0, this.radius, 0, Math.PI*2);
                 ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
                 ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * (this.isCombo ? 1.1 : 0.85))}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText(this.label || this.val, 0, 0); ctx.restore();
+                if (typeof this.val === 'number') {
+                    ctx.fillText(this.val.toLocaleString(), 0, 0);
+                } else {
+                    ctx.fillText(this.label, 0, 0);
+                }
+                ctx.restore();
             }
         }
 
@@ -351,7 +365,7 @@
             checkLoss() {
                 const tray = this.queue.filter(p => p !== null); if (tray.length === 0) return;
                 const possible = tray.some(type => { for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) if(this.validate(type, x, y)) return true; } return false; });
-                if(!possible) { SFX.play('gameOver'); this.visualEntities.forEach(e => { if(!e.isExploded) e.explode(); }); document.getElementById('final-score').textContent = this.score; setTimeout(() => { document.getElementById('overlay').style.display = 'flex'; }, 1500); }
+                if(!possible) { SFX.play('gameOver'); this.visualEntities.forEach(e => { if(!e.isExploded) e.explode(); }); document.getElementById('final-score').textContent = this.score.toLocaleString(); setTimeout(() => { document.getElementById('overlay').style.display = 'flex'; }, 1500); }
             }
 
             executePlace(cmd) {
@@ -409,8 +423,8 @@
             }
 
             updateUI() {
-                document.getElementById('ui-score').textContent = this.score; if(this.score > this.best) { this.best = this.score; localStorage.setItem('harambe_blocks_best', this.best); }
-                document.getElementById('ui-best').textContent = this.best;
+                document.getElementById('ui-score').textContent = this.score.toLocaleString(); if(this.score > this.best) { this.best = this.score; localStorage.setItem('harambe_blocks_best', this.best); }
+                document.getElementById('ui-best').textContent = parseInt(this.best).toLocaleString();
                 const comboEl = document.getElementById('combo-ui');
                 if (this.comboCount > 0) { comboEl.style.display = 'inline-block'; comboEl.textContent = `${this.comboCount}X COMBO`; } else { comboEl.style.display = 'none'; }
             }
@@ -429,28 +443,21 @@
             }
 
             handleBadgeExplode(p) {
-                SFX.play('pop'); 
+                if (p.isCombo) SFX.play('combo'); else SFX.play('pop'); 
                 let power = typeof p.val === 'number' && p.val >= 400 ? 4 : (typeof p.val === 'number' && p.val >= 100 ? 2.5 : 1);
                 if (p.isCombo) power = 5;
-                
                 this.shake = 5 * power; 
                 let count = typeof p.val === 'number' && p.val >= 400 ? 150 : (typeof p.val === 'number' && p.val >= 100 ? 80 : 30);
                 if (p.isCombo) count = 200;
-
                 const isPremium = p.isCombo || (typeof p.val === 'number' && p.val >= 400);
-                
                 for(let i=0; i<count; i++) this.confetti.push(new Confetti(p.x, p.y, power, isPremium ? null : p.color));
-                
                 if (p.isCombo) {
                     for (let i = 0; i < 3; i++) {
-                        setTimeout(() => {
-                            this.shockwaves.push(new Shockwave(p.x, p.y, power * (1 - i*0.2), `hsl(${Math.random()*360}, 100%, 70%)`));
-                        }, i * 100);
+                        setTimeout(() => { this.shockwaves.push(new Shockwave(p.x, p.y, power * (1 - i*0.2), `hsl(${Math.random()*360}, 100%, 70%)`)); }, i * 100);
                     }
                 } else {
                     this.shockwaves.push(new Shockwave(p.x, p.y, power, isPremium ? `hsl(${Math.random()*360}, 100%, 70%)` : p.color));
                 }
-
                 if (typeof p.val === 'number' && p.val >= 100) {
                     const newVal = p.val / 2; for (let i = 0; i < 2; i++) {
                         const angle = -Math.PI/2 + (Math.random() - 0.5) * 1.5; const force = 400 + Math.random() * 200;
