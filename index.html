@@ -14,47 +14,70 @@
         :root { --bg: #050505; --white: #ffffff; }
         body { background: var(--bg); color: var(--white); font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
         #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; max-width: 500px; margin: 0 auto; padding: env(safe-area-inset-top) 1rem env(safe-area-inset-bottom) 1rem; box-sizing: border-box; transition: background 0.3s; position: relative; }
-        header { flex: 0 0 15%; display: flex; justify-content: space-between; align-items: center; position: relative; }
+        header { flex: 0 0 15%; display: flex; justify-content: space-between; align-items: center; position: relative; gap: 0.5rem; }
         main { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 0; pointer-events: none; }
         #game { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         footer { flex: 0 0 22%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 0.5rem; position: relative; z-index: 5; }
-        .score-val { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+        .score-val { font-size: 1.8rem; font-weight: 900; line-height: 1; }
         .label { font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); }
         .slot { flex: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
-        #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(20px); padding: 2rem; overflow-y: auto; }
+        
+        #overlay, #full-lb-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(20px); padding: 2rem; }
+        #full-lb-overlay { z-index: 2000; }
+        
         .btn-retry { padding: 0.8rem 2rem; background: #fff; color: #000; font-weight: 900; border-radius: 2rem; text-transform: uppercase; letter-spacing: 0.1em; transition: transform 0.2s; margin-top: 1rem; }
         .btn-retry:active { transform: scale(0.9); }
+        
         input { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius: 0.5rem; padding: 0.8rem; color: #fff; font-weight: 900; text-align: center; width: 100%; max-width: 300px; margin: 1rem 0; outline: none; }
         input:focus { border-color: #ffd700; }
-        #leaderboard { width: 100%; max-width: 300px; margin-top: 2rem; font-size: 0.8rem; }
+        
+        .leaderboard-list { width: 100%; max-width: 300px; margin-top: 1rem; font-size: 0.8rem; overflow-y: auto; flex: 1; }
         .lb-row { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .lb-name { font-weight: 700; color: rgba(255,255,255,0.8); }
         .lb-score { font-weight: 900; color: #ffd700; }
+        
+        #lb-preview { cursor: pointer; transition: opacity 0.2s; max-width: 120px; }
+        #lb-preview:active { opacity: 0.5; }
     </style>
 </head>
 <body>
+    <div id="full-lb-overlay">
+        <div class="label mb-4">Global Top 100</div>
+        <div id="full-lb-content" class="leaderboard-list">Loading...</div>
+        <button class="btn-retry" onclick="document.getElementById('full-lb-overlay').style.display='none'">Back to Game</button>
+    </div>
+
     <div id="overlay">
         <div class="label mb-2 text-white/60">Session Ended</div>
         <div id="final-score" class="text-6xl font-black mb-2">0</div>
         
-        <div id="submit-zone" class="w-full flex flex-col items-center">
+        <div id="submit-zone" class="w-full flex flex-col items-center border-b border-white/10 pb-6 mb-4">
             <input type="text" id="player-name" placeholder="YOUR NAME" maxlength="12">
             <button class="btn-retry" id="btn-submit">Submit & Respawn</button>
         </div>
 
-        <div id="leaderboard">
-            <div class="label text-center mb-4">Global Top 10</div>
-            <div id="lb-content">Loading rankings...</div>
+        <div id="lb-gameover" class="w-full max-w-[300px] flex flex-col h-1/2">
+            <div class="label text-center mb-2">Global Top 10</div>
+            <div id="lb-content" class="leaderboard-list"></div>
         </div>
     </div>
 
     <div id="app">
         <header>
-            <div>
+            <div class="flex-1">
                 <div class="label">Score</div>
                 <div id="ui-score" class="score-val">0</div>
             </div>
-            <div class="text-right"><div class="label">Best</div><div id="ui-best" class="text-xl font-bold opacity-40">0</div></div>
+            
+            <div id="lb-preview" class="flex flex-col items-center flex-1">
+                <div class="label">Leaderboard</div>
+                <div id="lb-preview-content" class="text-[0.6rem] font-bold text-center leading-tight opacity-60">Loading Top 3...</div>
+            </div>
+
+            <div class="text-right flex-1">
+                <div class="label">Best</div>
+                <div id="ui-best" class="text-xl font-bold opacity-40">0</div>
+            </div>
         </header>
         <main id="stage"></main>
         <canvas id="game"></canvas>
@@ -73,7 +96,6 @@
 
         const COLORS = { BRONZE: '#cd7f32', SILVER: '#c0c0c0', GOLD: '#ffd700' };
         
-        // Public Dreamlo Leaderboard (User provided)
         const LB_CONFIG = {
             PUBLIC: '67cb2bf98f40bb8380db69ba',
             PRIVATE: 'dgRIA9HWQEW-dm4y_bvFqQRQPTXQ1JMEK8NZG4m2nQhQ' 
@@ -117,14 +139,12 @@
                     const base = 220 * Math.pow(1.059, Math.min(24, (m - 2) * 3));
                     for(let i=0; i<3; i++) {
                         const o = this.ctx.createOscillator(); const g = this.ctx.createGain();
-                        o.type = 'sine';
-                        const harmonic = [1, 2.01, 3.02][i];
+                        o.type = 'sine'; const harmonic = [1, 2.01, 3.02][i];
                         o.frequency.setValueAtTime(base * harmonic, now);
                         o.frequency.exponentialRampToValueAtTime(base * harmonic * 1.5, now + 0.4);
                         g.gain.setValueAtTime(0.2 / (i+1), now);
                         g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                        o.connect(g); g.connect(this.master);
-                        o.start(now); o.stop(now + 0.5);
+                        o.connect(g); g.connect(this.master); o.start(now); o.stop(now + 0.5);
                     }
                     const sparkle = this.ctx.createOscillator(); const sGain = this.ctx.createGain();
                     sparkle.type = 'triangle'; sparkle.frequency.setValueAtTime(base * 8, now); sparkle.frequency.exponentialRampToValueAtTime(base * 16, now + 0.3);
@@ -226,11 +246,8 @@
                 const isRainbowTier = this.isCombo || (typeof this.val === 'number' && this.val >= 125);
                 const s = this.spawnScale * (isRainbowTier || (typeof this.val === 'number' && this.val >= 100) ? (1 + Math.sin(this.pulse) * 0.1) : 1); ctx.scale(s, s);
                 let fill = this.color;
-                if (isRainbowTier) { 
-                    fill = `hsl(${(this.pulse * 100) % 360}, 100%, 60%)`; ctx.shadowColor = fill; ctx.shadowBlur = 25; 
-                } else if (typeof this.val === 'number' && this.val >= 100) { 
-                    ctx.shadowColor = this.color; ctx.shadowBlur = 15; 
-                }
+                if (isRainbowTier) { fill = `hsl(${(this.pulse * 100) % 360}, 100%, 60%)`; ctx.shadowColor = fill; ctx.shadowBlur = 25; } 
+                else if (typeof this.val === 'number' && this.val >= 100) { ctx.shadowColor = this.color; ctx.shadowBlur = 15; }
                 ctx.fillStyle = fill; ctx.beginPath();
                 if (this.isCombo) {
                     const spikes = 5; const outer = this.radius * 1.2; const inner = this.radius * 0.6;
@@ -243,8 +260,7 @@
                 } else { ctx.arc(0, 0, this.radius, 0, Math.PI*2); }
                 ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
                 ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * (this.isCombo ? 0.75 : 0.85))}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                if (typeof this.val === 'number') ctx.fillText(this.val.toLocaleString(), 0, 0);
-                else ctx.fillText(this.label, 0, 0);
+                if (typeof this.val === 'number') ctx.fillText(this.val.toLocaleString(), 0, 0); else ctx.fillText(this.label, 0, 0);
                 ctx.restore();
             }
         }
@@ -296,8 +312,7 @@
                 window.addEventListener('touchstart', start, {passive:false}); window.addEventListener('touchmove', move, {passive:false}); window.addEventListener('touchend', end);
                 
                 const nameInput = document.getElementById('player-name');
-                const lastPlayer = localStorage.getItem('harambe_last_player') || '';
-                nameInput.value = lastPlayer;
+                nameInput.value = localStorage.getItem('harambe_last_player') || '';
 
                 document.getElementById('btn-submit').onclick = () => {
                     const name = nameInput.value.trim().toUpperCase() || 'ANONYMOUS';
@@ -305,6 +320,12 @@
                     this.submitScore(name, this.score);
                 };
 
+                document.getElementById('lb-preview').onclick = () => {
+                    document.getElementById('full-lb-overlay').style.display = 'flex';
+                    this.fetchLeaderboard(100);
+                };
+
+                this.fetchLeaderboard(3); // Initial top 3 fetch
                 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
                 requestAnimationFrame(this.gameLoop.bind(this));
             }
@@ -389,44 +410,38 @@
             getPieceCenter(type, gx, gy) { const b = this.getB(type); return { x: this.gridOffset.x + CONFIG.GAP + (gx + b.w/2) * (this.cSize + CONFIG.GAP), y: this.gridOffset.y + CONFIG.GAP + (gy + b.h/2) * (this.cSize + CONFIG.GAP) }; }
             validate(type, gx, gy) { const s = ALL_SHAPES[type]; if (!s) return false; return s.every(([px, py]) => { const tx = gx+px, ty = gy+py; return tx>=0 && tx<CONFIG.GRID && ty>=0 && ty<CONFIG.GRID && !this.logicalGrid[ty][tx]; }); }
 
-            simulateClears(type, gx, gy) {
-                const shape = ALL_SHAPES[type]; const tempGrid = JSON.parse(JSON.stringify(this.logicalGrid));
-                shape.forEach(([px, py]) => tempGrid[gy+py][gx+px] = true);
-                let clears = 0; for(let y=0; y<CONFIG.GRID; y++) if(tempGrid[y].every(x=>x)) clears++;
-                for(let x=0; x<CONFIG.GRID; x++) { let f=true; for(let y=0; y<CONFIG.GRID; y++) if(!tempGrid[y][x]) f=false; if(f) clears++; }
-                return clears;
-            }
-
             checkLoss() {
                 const tray = this.queue.filter(p => p !== null); if (tray.length === 0) return;
                 const possible = tray.some(type => { for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) if(this.validate(type, x, y)) return true; } return false; });
                 if(!possible) { 
                     SFX.play('gameOver'); this.visualEntities.forEach(e => { if(!e.isExploded) e.explode(); }); 
                     document.getElementById('final-score').textContent = this.score.toLocaleString(); 
-                    this.fetchLeaderboard();
+                    this.fetchLeaderboard(10);
                     setTimeout(() => { document.getElementById('overlay').style.display = 'flex'; }, 1500); 
                 }
             }
 
             async submitScore(name, score) {
-                try {
-                    await fetch(`https://www.dreamlo.com/lb/${LB_CONFIG.PRIVATE}/add/${encodeURIComponent(name)}/${score}`);
-                    location.reload();
-                } catch (e) { location.reload(); }
+                try { await fetch(`https://www.dreamlo.com/lb/${LB_CONFIG.PRIVATE}/add/${encodeURIComponent(name)}/${score}`); location.reload(); } catch (e) { location.reload(); }
             }
 
-            async fetchLeaderboard() {
+            async fetchLeaderboard(limit = 10) {
                 try {
                     const res = await fetch(`https://www.dreamlo.com/lb/${LB_CONFIG.PUBLIC}/json`);
                     const data = await res.json();
                     let list = data.dreamlo.leaderboard.entry;
+                    if (!list) return;
                     if (!Array.isArray(list)) list = [list];
+                    
                     let html = '';
-                    list.slice(0, 10).forEach(e => {
-                        html += `<div class="lb-row"><span class="lb-name">${e.name}</span><span class="lb-score">${parseInt(e.score).toLocaleString()}</span></div>`;
+                    list.slice(0, limit).forEach((e, i) => {
+                        html += `<div class="lb-row"><span class="lb-name">#${i+1} ${e.name}</span><span class="lb-score">${parseInt(e.score).toLocaleString()}</span></div>`;
                     });
-                    document.getElementById('lb-content').innerHTML = html || 'No scores yet!';
-                } catch (e) { document.getElementById('lb-content').innerHTML = 'Offline Mode'; }
+
+                    if (limit === 3) document.getElementById('lb-preview-content').innerHTML = html || 'None';
+                    else if (limit === 10) document.getElementById('lb-content').innerHTML = html || 'No scores yet!';
+                    else if (limit === 100) document.getElementById('full-lb-content').innerHTML = html || 'No scores yet!';
+                } catch (e) {}
             }
 
             executePlace(cmd) {
@@ -438,9 +453,7 @@
                 for(let x=0; x<CONFIG.GRID; x++) { let f=true; for(let y=0; y<CONFIG.GRID; y++) if(!this.logicalGrid[y][x]) f=false; if(f) c.push(x); }
                 const lineCount = r.length + c.length;
                 
-                if (lineCount > 0) this.comboCount++;
-                else this.comboCount = 0;
-                
+                if (lineCount > 0) this.comboCount++; else this.comboCount = 0;
                 const multiplier = Math.max(1, this.comboCount);
                 let lineBonus = 0;
                 if (lineCount === 1) lineBonus = 50; else if (lineCount === 2) lineBonus = 75; else if (lineCount === 3) lineBonus = 125; else if (lineCount === 4) lineBonus = 175; else if (lineCount >= 5) lineBonus = 250;
@@ -450,18 +463,14 @@
                 const center = this.getPieceCenter(cmd.shape, cmd.gx, cmd.gy);
 
                 this.popups.push(new ScorePopup(center.x, center.y, piecePoints * multiplier, bounds));
-                
                 if (lineCount > 0) {
                     if (multiplier > 1) {
                         SFX.play('combo', { multiplier });
                         shape.forEach(([px, py]) => {
                             const tx = this.gridOffset.x + CONFIG.GAP + (cmd.gx+px) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
                             const ty = this.gridOffset.y + CONFIG.GAP + (cmd.gy+py) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
-                            for(let i=0; i<1; i++) {
-                                const vx = (Math.random()-0.5)*600; const vy = -400-Math.random()*400;
-                                const p = new ScorePopup(tx, ty, null, bounds, `${multiplier}X`, vx, vy);
-                                p.radius = 45; this.popups.push(p);
-                            }
+                            const p = new ScorePopup(tx, ty, null, bounds, `${multiplier}X`, (Math.random()-0.5)*600, -400-Math.random()*400);
+                            p.radius = 45; this.popups.push(p);
                         });
                     }
                     setTimeout(() => { this.popups.push(new ScorePopup(center.x, center.y, lineBonus * multiplier, bounds)); }, 250);
@@ -509,21 +518,14 @@
             }
 
             handleBadgeExplode(p) {
-                if (p.isCombo) SFX.play('pop'); else SFX.play('pop'); 
-                let power = typeof p.val === 'number' && p.val >= 400 ? 4 : (typeof p.val === 'number' && p.val >= 100 ? 2.5 : 1);
-                if (p.isCombo) power = 5;
-                this.shake = 5 * power; 
-                let count = typeof p.val === 'number' && p.val >= 400 ? 150 : (typeof p.val === 'number' && p.val >= 100 ? 80 : 30);
+                SFX.play('pop'); let power = typeof p.val === 'number' && p.val >= 125 ? 4 : (typeof p.val === 'number' && p.val >= 100 ? 2.5 : 1);
+                if (p.isCombo) power = 5; this.shake = 5 * power; 
+                let count = typeof p.val === 'number' && p.val >= 125 ? 150 : (typeof p.val === 'number' && p.val >= 100 ? 80 : 30);
                 if (p.isCombo) count = 200;
-                const isPremium = p.isCombo || (typeof p.val === 'number' && p.val >= 400);
+                const isPremium = p.isCombo || (typeof p.val === 'number' && p.val >= 125);
                 for(let i=0; i<count; i++) this.confetti.push(new Confetti(p.x, p.y, power, isPremium ? null : p.color));
-                if (p.isCombo) {
-                    for (let i = 0; i < 3; i++) {
-                        setTimeout(() => { this.shockwaves.push(new Shockwave(p.x, p.y, power * (1 - i*0.2), `hsl(${Math.random()*360}, 100%, 70%)`)); }, i * 100);
-                    }
-                } else {
-                    this.shockwaves.push(new Shockwave(p.x, p.y, power, isPremium ? `hsl(${Math.random()*360}, 100%, 70%)` : p.color));
-                }
+                if (p.isCombo) { for (let i = 0; i < 3; i++) { setTimeout(() => { this.shockwaves.push(new Shockwave(p.x, p.y, power * (1 - i*0.2), `hsl(${Math.random()*360}, 100%, 70%)`)); }, i * 100); } }
+                else { this.shockwaves.push(new Shockwave(p.x, p.y, power, isPremium ? `hsl(${Math.random()*360}, 100%, 70%)` : p.color)); }
                 if (typeof p.val === 'number' && p.val >= 100) {
                     const newVal = p.val / 2; for (let i = 0; i < 2; i++) {
                         const angle = -Math.PI/2 + (Math.random() - 0.5) * 1.5; const force = 400 + Math.random() * 200;
