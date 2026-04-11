@@ -377,9 +377,9 @@
                 this.popups.push(new ScorePopup(center.x, center.y, piecePoints, bounds));
                 if (lineCount > 0) {
                     setTimeout(() => {
-                        this.popups.push(new ScorePopup(center.x, center.y, lineBonus, bounds, `+${lineBonus} BONUS`));
+                        this.popups.push(new ScorePopup(center.x, center.y, lineBonus, bounds));
                         if (multiplier > 1) {
-                            setTimeout(() => { this.popups.push(new ScorePopup(center.x, center.y, moveScore, bounds, `${multiplier}X COMBO`)); }, 250);
+                            setTimeout(() => { this.popups.push(new ScorePopup(center.x, center.y, null, bounds, `${multiplier}X`)); }, 250);
                         }
                     }, 250);
                 }
