@@ -163,8 +163,9 @@
                 this.x = x; this.y = y; this.val = val; this.label = label; this.bounds = bounds; this.isDead = false;
                 this.vx = vx !== null ? vx : (Math.random() - 0.5) * 200; this.vy = vy !== null ? vy : -450 - Math.random() * 200; 
                 this.rotation = 0; this.rotV = (Math.random() - 0.5) * 8;
-                this.radius = typeof val === 'number' ? Math.max(18, Math.min(55, 14 + (val / 18))) : 40;
+                this.radius = typeof val === 'number' ? Math.max(18, Math.min(55, 14 + (val / 18))) : 45;
                 this.pulse = 0; this.bounciness = 0.7; this.spawnScale = 0; this.targetScale = 1.0;
+                this.isCombo = label && label.includes('X');
                 if (typeof val === 'number') { if (val < 100) this.color = COLORS.BRONZE; else if (val < 400) this.color = COLORS.SILVER; else this.color = COLORS.GOLD; } else { this.color = '#ffd700'; }
             }
             update(dt, onHit) {
@@ -177,14 +178,17 @@
             }
             draw(ctx) {
                 ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
-                const s = this.spawnScale * (typeof this.val === 'number' && this.val >= 100 ? (1 + Math.sin(this.pulse) * 0.1) : 1); ctx.scale(s, s);
+                const s = this.spawnScale * (this.isCombo || (typeof this.val === 'number' && this.val >= 100) ? (1 + Math.sin(this.pulse) * 0.1) : 1); ctx.scale(s, s);
                 let fill = this.color;
-                if (typeof this.val === 'number' && this.val >= 400) { fill = `hsl(${(this.pulse * 100) % 360}, 100%, 60%)`; ctx.shadowColor = fill; ctx.shadowBlur = 25; }
-                else if (typeof this.val === 'number' && this.val >= 100) { ctx.shadowColor = this.color; ctx.shadowBlur = 15; }
+                if (this.isCombo || (typeof this.val === 'number' && this.val >= 400)) { 
+                    fill = `hsl(${(this.pulse * 100) % 360}, 100%, 60%)`; ctx.shadowColor = fill; ctx.shadowBlur = 25; 
+                } else if (typeof this.val === 'number' && this.val >= 100) { 
+                    ctx.shadowColor = this.color; ctx.shadowBlur = 15; 
+                }
                 ctx.fillStyle = fill; ctx.beginPath();
-                if (this.label) { ctx.roundRect(-this.radius*1.2, -this.radius*0.6, this.radius*2.4, this.radius*1.2, 10); } else { ctx.arc(0, 0, this.radius, 0, Math.PI*2); }
+                if (this.label) { ctx.arc(0, 0, this.radius, 0, Math.PI*2); } else { ctx.arc(0, 0, this.radius, 0, Math.PI*2); }
                 ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = (typeof this.val === 'number' && this.val >= 100) || this.label ? 7 : 4; ctx.stroke();
-                ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * 0.85)}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#000'; ctx.font = `900 ${Math.floor(this.radius * (this.isCombo ? 1.1 : 0.85))}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(this.label || this.val, 0, 0); ctx.restore();
             }
         }
