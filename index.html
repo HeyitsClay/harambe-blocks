@@ -429,10 +429,28 @@
             }
 
             handleBadgeExplode(p) {
-                SFX.play('pop'); const power = typeof p.val === 'number' && p.val >= 400 ? 4 : (typeof p.val === 'number' && p.val >= 100 ? 2.5 : 1);
-                this.shake = 5 * power; const count = typeof p.val === 'number' && p.val >= 400 ? 150 : (typeof p.val === 'number' && p.val >= 100 ? 80 : 30);
-                for(let i=0; i<count; i++) this.confetti.push(new Confetti(p.x, p.y, power, typeof p.val === 'number' && p.val >= 400 ? null : p.color));
-                this.shockwaves.push(new Shockwave(p.x, p.y, power, typeof p.val === 'number' && p.val >= 400 ? `hsl(${Math.random()*360}, 100%, 70%)` : p.color));
+                SFX.play('pop'); 
+                let power = typeof p.val === 'number' && p.val >= 400 ? 4 : (typeof p.val === 'number' && p.val >= 100 ? 2.5 : 1);
+                if (p.isCombo) power = 5;
+                
+                this.shake = 5 * power; 
+                let count = typeof p.val === 'number' && p.val >= 400 ? 150 : (typeof p.val === 'number' && p.val >= 100 ? 80 : 30);
+                if (p.isCombo) count = 200;
+
+                const isPremium = p.isCombo || (typeof p.val === 'number' && p.val >= 400);
+                
+                for(let i=0; i<count; i++) this.confetti.push(new Confetti(p.x, p.y, power, isPremium ? null : p.color));
+                
+                if (p.isCombo) {
+                    for (let i = 0; i < 3; i++) {
+                        setTimeout(() => {
+                            this.shockwaves.push(new Shockwave(p.x, p.y, power * (1 - i*0.2), `hsl(${Math.random()*360}, 100%, 70%)`));
+                        }, i * 100);
+                    }
+                } else {
+                    this.shockwaves.push(new Shockwave(p.x, p.y, power, isPremium ? `hsl(${Math.random()*360}, 100%, 70%)` : p.color));
+                }
+
                 if (typeof p.val === 'number' && p.val >= 100) {
                     const newVal = p.val / 2; for (let i = 0; i < 2; i++) {
                         const angle = -Math.PI/2 + (Math.random() - 0.5) * 1.5; const force = 400 + Math.random() * 200;
