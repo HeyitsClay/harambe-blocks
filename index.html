@@ -424,10 +424,11 @@
                         shape.forEach(([px, py]) => {
                             const tx = this.gridOffset.x + CONFIG.GAP + (cmd.gx+px) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
                             const ty = this.gridOffset.y + CONFIG.GAP + (cmd.gy+py) * (this.cSize + CONFIG.GAP) + this.cSize/2; 
-                            for(let i=0; i<3; i++) {
+                            for(let i=0; i<1; i++) { // Reduced from 3 to 1 per tile
                                 const vx = (Math.random()-0.5)*600; const vy = -400-Math.random()*400;
                                 const p = new ScorePopup(tx, ty, null, bounds, `${multiplier}X`, vx, vy);
-                                p.radius = 22; this.popups.push(p);
+                                p.radius = 45; // Bigger radius
+                                this.popups.push(p);
                             }
                         });
                     }
