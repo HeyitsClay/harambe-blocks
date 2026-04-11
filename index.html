@@ -20,7 +20,7 @@
         footer { flex: 0 0 22%; display: flex; gap: 0.5rem; align-items: center; justify-content: center; padding-bottom: 0.5rem; position: relative; z-index: 5; }
         .score-val { font-size: 2.2rem; font-weight: 900; line-height: 1; }
         .label { font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(255,255,255,0.4); }
-        .slot { flex: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+        .slot { flex: 1; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; background: rgba(255,255,255,0.04); border-radius: 1rem; }
         #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
         .btn-retry { margin-top: 2rem; padding: 1rem 3rem; background: #fff; color: #000; font-weight: 900; border-radius: 2rem; text-transform: uppercase; letter-spacing: 0.1em; transition: transform 0.2s; }
         .btn-retry:active { transform: scale(0.9); }
@@ -424,7 +424,17 @@
             render() {
                 const ctx = this.ctx; ctx.clearRect(0, 0, this.canvas.width / (window.devicePixelRatio || 2), this.canvas.height / (window.devicePixelRatio || 2));
                 ctx.save(); if(this.shake > 0) ctx.translate((Math.random()-0.5)*this.shake, (Math.random()-0.5)*this.shake);
-                for(let y=0; y<CONFIG.GRID; y++) { for(let x=0; x<CONFIG.GRID; x++) { ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.beginPath(); ctx.roundRect(this.gridOffset.x + CONFIG.GAP + x*(this.cSize+CONFIG.GAP), this.gridOffset.y + CONFIG.GAP + y*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10); ctx.fill(); } }
+                for(let y=0; y<CONFIG.GRID; y++) {
+                    for(let x=0; x<CONFIG.GRID; x++) {
+                        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+                        ctx.beginPath();
+                        ctx.roundRect(this.gridOffset.x + CONFIG.GAP + x*(this.cSize+CONFIG.GAP), this.gridOffset.y + CONFIG.GAP + y*(this.cSize+CONFIG.GAP), this.cSize, this.cSize, 10);
+                        ctx.fill();
+                        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
                 this.visualEntities.forEach(e => e.draw(ctx)); this.shards.forEach(s => s.draw(ctx)); this.shockwaves.forEach(s => s.draw(ctx)); this.flares.forEach(f => f.draw(ctx));
                 if(this.drag) {
                     this.drag.tx = LERP(this.drag.tx, this.mouse.x, 0.2); this.drag.ty = LERP(this.drag.ty, this.mouse.y, 0.2);
